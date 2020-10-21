@@ -1094,9 +1094,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     void messageReceived(MessageIdData messageId, int redeliveryCount, List<Long> ackSet, ByteBuf headersAndPayload, ClientCnx cnx) {
-        if (log.isDebugEnabled()) {
-            log.debug("[{}][{}] Received message: {}/{}", topic, subscription, messageId.getLedgerId(),
-                    messageId.getEntryId());
+        if (true) {
+            log.info("[{}][{}] Received message: {}/{} ackset: {}", topic, subscription, messageId.getLedgerId(),
+                    messageId.getEntryId(), BitSet.valueOf(ackSet.stream().mapToLong(id -> id).toArray()));
         }
 
         if (!verifyChecksum(headersAndPayload, messageId)) {
