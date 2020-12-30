@@ -91,6 +91,7 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
     public static StreamingOffloadIndexBlockImpl get(InputStream stream) throws IOException {
         StreamingOffloadIndexBlockImpl block = RECYCLER.get();
         block.indexEntries = Maps.newTreeMap();
+        block.segmentMetadata = Maps.newTreeMap();
         block.fromStream(stream);
         return block;
     }
@@ -125,7 +126,12 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
 
     @Override
     public int getEntryCount() {
-        return this.indexEntries.size();
+        int ans = 0;
+        for (TreeMap<Long, OffloadIndexEntryImpl> v : this.indexEntries.values()) {
+            ans += v.size();
+        }
+
+        return ans;
     }
 
     @Override

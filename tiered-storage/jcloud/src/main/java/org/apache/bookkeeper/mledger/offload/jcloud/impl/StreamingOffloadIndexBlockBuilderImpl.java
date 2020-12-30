@@ -72,8 +72,9 @@ public class StreamingOffloadIndexBlockBuilderImpl implements StreamingOffloadIn
         offset = offset + lastBlockSize;
         lastBlockSize = blockSize;
 
-        entryMap.getOrDefault(ledgerId, new LinkedList<>())
-                .add(OffloadIndexEntryImpl.of(firstEntryId, partId, offset, dataHeaderLength));
+        final List<OffloadIndexEntryImpl> list = entryMap.getOrDefault(ledgerId, new LinkedList<>());
+        list.add(OffloadIndexEntryImpl.of(firstEntryId, partId, offset, dataHeaderLength));
+        entryMap.put(ledgerId, list);
         return this;
     }
 
