@@ -34,6 +34,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import io.netty.util.ReferenceCountUtil;
 import java.time.Clock;
 import java.util.Collections;
 import java.util.HashMap;
@@ -73,6 +74,7 @@ import org.apache.bookkeeper.client.BKException.Code;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.JsonUtil;
@@ -1664,6 +1666,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     public CompletableFuture<String> getLedgerMetadata(long ledgerId) {
         return getLedgerHandle(ledgerId).thenApply(rh -> rh.getLedgerMetadata().toSafeString());
+    }
+
+    public CompletableFuture<LedgerMetadata> getRawLedgerMetadata(long ledgerId) {
+        return getLedgerHandle(ledgerId).thenApply(org.apache.bookkeeper.client.api.Handle::getLedgerMetadata);
     }
 
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {
