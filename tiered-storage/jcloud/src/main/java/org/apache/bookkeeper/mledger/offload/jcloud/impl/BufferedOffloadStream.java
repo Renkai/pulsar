@@ -33,10 +33,11 @@ import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 public class BufferedOffloadStream extends InputStream {
     static final int[] BLOCK_END_PADDING = BlockAwareSegmentInputStreamImpl.BLOCK_END_PADDING;
     private final SegmentInfo segmentInfo;
+
     private final long ledgerId;
+    private final long beginEntryId;
     private AtomicLong bufferLength;
     static final int ENTRY_HEADER_SIZE = 4 /* entry size */ + 8 /* entry id */;
-
     private final long blockSize;
     private final ConcurrentLinkedQueue<Entry> entryBuffer;
     private final InputStream blockHead;
@@ -45,6 +46,19 @@ public class BufferedOffloadStream extends InputStream {
     int validDataOffset = NOT_INITIALIZED;
     CompositeByteBuf currentEntry;
 
+    public long getLedgerId() {
+        return ledgerId;
+    }
+
+    public long getBeginEntryId() {
+        return beginEntryId;
+    }
+
+    public long getBlockSize() {
+        return blockSize;
+    }
+
+
     public BufferedOffloadStream(int blockSize,
                                  ConcurrentLinkedQueue<Entry> entryBuffer,
                                  SegmentInfo segmentInfo,
@@ -52,6 +66,7 @@ public class BufferedOffloadStream extends InputStream {
                                  long beginEntryId,
                                  AtomicLong bufferLength) {
         this.ledgerId = ledgerId;
+        this.beginEntryId = beginEntryId;
         this.blockSize = blockSize;
         this.segmentInfo = segmentInfo;
         this.entryBuffer = entryBuffer;
@@ -81,7 +96,7 @@ public class BufferedOffloadStream extends InputStream {
         if (blockSize == offset) {
             return -1;
         } else if (validDataOffset != NOT_INITIALIZED) {
-            return BLOCK_END_PADDING[offset++ - validDataOffset];
+            return BLOCK_END_PADDING[(offset++ - validDataOffset) % BLOCK_END_PADDING.length];
         }
 
         Entry headEntry;
