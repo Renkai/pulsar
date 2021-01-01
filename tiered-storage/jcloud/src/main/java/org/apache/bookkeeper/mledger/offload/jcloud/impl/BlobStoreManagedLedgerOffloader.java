@@ -43,7 +43,6 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.OffloadNotConsecutiveException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
@@ -89,14 +88,14 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private SegmentInfo segmentInfo;
     private AtomicLong bufferLength = new AtomicLong(0);
     private AtomicLong segmentLength = new AtomicLong(0);
-    final private long maxBufferLength = 10 * 1024 * 1024; //TODO initialize by configuration
+    final private long maxBufferLength = 10 * 1024 * 1024;
     final private ConcurrentLinkedQueue<Entry> offloadBuffer = new ConcurrentLinkedQueue<>();
     private CompletableFuture<OffloadResult> offloadResult;
     private volatile PositionImpl lastOfferedPosition = PositionImpl.latest;
-    private Duration segmentCloseTime = Duration.ofMinutes(10); //TODO initialize by configuration
-    private long maxSegmentLength = 1024 * 1024 * 1024; //TODO initialize by configuration
+    private final Duration segmentCloseTime;
+    private final long maxSegmentLength;
     private final int streamingBlockSize;
-    private ManagedLedgerImpl ml;
+    private ManagedLedger ml;
     private StreamingOffloadIndexBlockBuilder streamingIndexBuilder;
 
     public static BlobStoreManagedLedgerOffloader create(TieredStorageConfiguration config,
@@ -113,13 +112,15 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         this.userMetadata = userMetadata;
         this.config = config;
         this.streamingBlockSize = config.getMaxBlockSizeInBytes();
+        this.segmentCloseTime = Duration.ofSeconds(config.getMaxSegmentTimeInSecond());
+        this.maxSegmentLength = config.getMaxSegmentSizeInBytes();
 
         if (!Strings.isNullOrEmpty(config.getRegion())) {
             this.writeLocation = new LocationBuilder()
-                .scope(LocationScope.REGION)
-                .id(config.getRegion())
-                .description(config.getRegion())
-                .build();
+                    .scope(LocationScope.REGION)
+                    .id(config.getRegion())
+                    .description(config.getRegion())
+                    .build();
         } else {
             this.writeLocation = null;
         }
@@ -269,7 +270,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     public CompletableFuture<OffloaderHandle> streamingOffload(ManagedLedger ml, UUID uuid, long beginLedger,
                                                                long beginEntry,
                                                                Map<String, String> driverMetadata) {
-        this.ml = (ManagedLedgerImpl) ml;
+        this.ml = ml;
         this.segmentInfo = new SegmentInfo(uuid, beginLedger, beginEntry, config.getDriver(), driverMetadata);
         this.offloadResult = new CompletableFuture<>();
         blobStore = blobStores.get(config.getBlobStoreLocation());
