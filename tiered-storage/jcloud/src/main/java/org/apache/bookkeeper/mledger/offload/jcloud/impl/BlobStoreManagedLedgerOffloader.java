@@ -272,6 +272,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                                                Map<String, String> driverMetadata) {
         this.ml = ml;
         this.segmentInfo = new SegmentInfo(uuid, beginLedger, beginEntry, config.getDriver(), driverMetadata);
+        log.debug("begin offload with {}:{}", beginLedger, beginEntry);
         this.offloadResult = new CompletableFuture<>();
         blobStore = blobStores.get(config.getBlobStoreLocation());
         streamingIndexBuilder = new StreamingOffloadIndexBlockBuilderImpl();
@@ -314,6 +315,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     }
 
     private void streamingOffloadLoop(int partId, int dataObjectLength) {
+        log.debug("streaming offload loop {} {}", partId, dataObjectLength);
         if (segmentInfo.isClosed() && offloadBuffer.isEmpty()) {
             offloadResult.complete(segmentInfo.result());
             return;
@@ -337,14 +339,14 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         final long blockEntryId = peek.getEntryId();
         payloadStream = new BufferedOffloadStream(streamingBlockSize, offloadBuffer, segmentInfo,
                 blockLedgerId, blockEntryId, bufferLength);
-
         try {
             streamingIndexBuilder.addLedgerMeta(blockLedgerId, ml.getRawLedgerMetadata(blockLedgerId).get());
             streamingIndexBuilder.withDataBlockHeaderLength(StreamingDataBlockHeaderImpl.getDataStartOffset());
         } catch (InterruptedException | ExecutionException e) {
             offloadResult.completeExceptionally(e);
+            return;
         }
-
+        log.debug("begin upload payload");
         Payload partPayload = Payloads.newInputStreamPayload(payloadStream);
         partPayload.getContentMetadata().setContentType("application/octet-stream");
         streamingParts.add(blobStore.uploadMultipartPart(streamingMpu, partId, partPayload));
@@ -387,8 +389,10 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         if (segmentInfo.isClosed()) {
             throw new OffloadSegmentClosedException("Segment already closed " + segmentInfo);
         } else {
-            if (naiveCheckConsecutive(lastOfferedPosition, entry.getPosition())) {
-                throw new OffloadNotConsecutiveException("");
+            if (!naiveCheckConsecutive(lastOfferedPosition, entry.getPosition())) {
+                throw new OffloadNotConsecutiveException(
+                        Strings.lenientFormat("position %s and %s are not consecutive", lastOfferedPosition,
+                                entry.getPosition()));
             }
             entry.retain();
             offloadBuffer.add(entry);
@@ -403,6 +407,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     }
 
     private synchronized void closeSegment() {
+        log.debug("close segment {} {}", lastOfferedPosition.getLedgerId(), lastOfferedPosition.getEntryId());
         this.segmentInfo.closeSegment(lastOfferedPosition.getLedgerId(), lastOfferedPosition.getEntryId());
     }
 
@@ -414,7 +419,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             return true;
         } else {
             // lastOfferedPosition not initialized
-            return lastOfferedPosition == PositionImpl.latest;
+            return lastOfferedPosition.equals(PositionImpl.latest);
         }
     }
 

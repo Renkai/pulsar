@@ -28,12 +28,14 @@ import java.util.UUID;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloader.OffloaderHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.jclouds.blobstore.BlobStore;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.Test;
 
 public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManagedLedgerOffloaderBase {
 
@@ -76,17 +78,28 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         return offloader;
     }
 
+    @Test(timeOut = 10000)
     public void testHappyCase() throws Exception {
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
-            put(TieredStorageConfiguration.MAX_SEGMENT_SIZE_IN_BYTES, "");
-            put(TieredStorageConfiguration.MAX_SEGMENT_TIME_IN_SECOND, "");
+            put(TieredStorageConfiguration.MAX_SEGMENT_SIZE_IN_BYTES, "1000");
+            put(TieredStorageConfiguration.MAX_SEGMENT_TIME_IN_SECOND, "60000");
         }});
         ManagedLedger ml = createMockManagedLedger();
         UUID uuid = UUID.randomUUID();
         long beginLedger = 0;
-        long beginEntry = 1;
-        OffloaderHandle offloaderHandleCompletableFuture = offloader
+        long beginEntry = 0;
+        log.error("try begin offload");
+        OffloaderHandle offloaderHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, new HashMap<>()).get();
+
+        //Segment should closed because size in bytes full
+        for (int i = 0; i < 10; i++) {
+            offloaderHandle.offerEntry(EntryImpl.create(0, i, new byte[100]));
+        }
+        final LedgerOffloader.OffloadResult offloadResult = offloaderHandle.getOffloadResultAsync().get();
+        log.info("Offload reasult: {}", offloadResult);
     }
+
+    //TODO test write and read again
 
 }
