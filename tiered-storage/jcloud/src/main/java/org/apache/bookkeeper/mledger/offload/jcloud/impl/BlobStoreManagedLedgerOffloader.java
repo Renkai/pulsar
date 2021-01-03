@@ -361,6 +361,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 final StreamingOffloadIndexBlock index = streamingIndexBuilder.build();
                 final StreamingOffloadIndexBlock.IndexInputStream indexStream = index.toStream();
                 final BlobBuilder indexBlobBuilder = blobStore.blobBuilder(streamingDataIndexKey);
+                DataBlockUtils.addVersionInfo(indexBlobBuilder, userMetadata);
                 final InputStreamPayload indexPayLoad = Payloads.newInputStreamPayload(indexStream);
                 indexPayLoad.getContentMetadata().setContentLength(indexStream.getStreamSize());
                 indexPayLoad.getContentMetadata().setContentType("application/octet-stream");
