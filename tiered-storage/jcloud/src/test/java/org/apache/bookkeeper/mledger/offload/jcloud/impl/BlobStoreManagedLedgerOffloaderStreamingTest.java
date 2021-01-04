@@ -225,4 +225,77 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
             assertEquals(storedData, entryBytes);
         }
     }
+
+    @Test(timeOut = 10000)
+    public void testReadAndWriteAcrossSegment() throws Exception {
+        LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
+            put(TieredStorageConfiguration.MAX_SEGMENT_SIZE_IN_BYTES, "1000");
+            put(TieredStorageConfiguration.MAX_SEGMENT_TIME_IN_SECOND, "60000");
+        }});
+        LedgerOffloader offloader2 = getOffloader(new HashMap<String, String>() {{
+            put(TieredStorageConfiguration.MAX_SEGMENT_SIZE_IN_BYTES, "1000");
+            put(TieredStorageConfiguration.MAX_SEGMENT_TIME_IN_SECOND, "60000");
+        }});
+        ManagedLedger ml = createMockManagedLedger();
+        UUID uuid = UUID.randomUUID();
+        UUID uuid2 = UUID.randomUUID();
+        long beginLedger = 0;
+        long beginEntry = 0;
+
+        Map<String, String> driverMeta = new HashMap<String, String>() {{
+            put(TieredStorageConfiguration.METADATA_FIELD_BUCKET, BUCKET);
+        }};
+        OffloaderHandle offloaderHandle = offloader
+                .streamingOffload(ml, uuid, beginLedger, beginEntry, driverMeta).get();
+
+        //Segment should closed because size in bytes full
+        final LinkedList<Entry> entries = new LinkedList<>();
+        for (int i = 0; i < 10; i++) {
+            final byte[] data = new byte[100];
+            random.nextBytes(data);
+            final EntryImpl entry = EntryImpl.create(0, i, data);
+            offloaderHandle.offerEntry(entry);
+            entries.add(entry);
+        }
+
+        final LedgerOffloader.OffloadResult offloadResult = offloaderHandle.getOffloadResultAsync().get();
+        assertEquals(offloadResult.endLedger, 0);
+        assertEquals(offloadResult.endEntry, 9);
+
+        //Segment should closed because size in bytes full
+        OffloaderHandle offloaderHandle2 = offloader2
+                .streamingOffload(ml, uuid2, beginLedger, 10, driverMeta).get();
+        for (int i = 0; i < 10; i++) {
+            final byte[] data = new byte[100];
+            random.nextBytes(data);
+            final EntryImpl entry = EntryImpl.create(0, i + 10, data);
+            offloaderHandle2.offerEntry(entry);
+            entries.add(entry);
+        }
+        final LedgerOffloader.OffloadResult offloadResult2 = offloaderHandle2.getOffloadResultAsync().get();
+        assertEquals(offloadResult2.endLedger, 0);
+        assertEquals(offloadResult2.endEntry, 19);
+
+        final OffloadContext.Builder contextBuilder = OffloadContext.newBuilder();
+        contextBuilder.addOffloadSegment(
+                MLDataFormats.OffloadSegment.newBuilder()
+                        .setUidLsb(uuid.getLeastSignificantBits())
+                        .setUidMsb(uuid.getMostSignificantBits())
+                        .setComplete(true).setEndEntryId(9).build()).addOffloadSegment(
+                MLDataFormats.OffloadSegment.newBuilder()
+                        .setUidLsb(uuid2.getLeastSignificantBits())
+                        .setUidMsb(uuid2.getMostSignificantBits())
+                        .setComplete(true).setEndEntryId(19).build()
+        );
+
+        final ReadHandle readHandle = offloader.readOffloaded(0, contextBuilder.build(), driverMeta).get();
+        final LedgerEntries ledgerEntries = readHandle.readAsync(0, 19).get();
+
+        for (LedgerEntry ledgerEntry : ledgerEntries) {
+            final EntryImpl storedEntry = (EntryImpl) entries.get((int) ledgerEntry.getEntryId());
+            final byte[] storedData = storedEntry.getData();
+            final byte[] entryBytes = ledgerEntry.getEntryBytes();
+            assertEquals(storedData, entryBytes);
+        }
+    }
 }
