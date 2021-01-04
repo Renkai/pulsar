@@ -136,8 +136,6 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
             random.nextBytes(data);
             final EntryImpl entry = EntryImpl.create(0, i, data);
             offloaderHandle.offerEntry(entry);
-            entry.retain();
-            entry.retain();
             entries.add(entry);
         }
 
@@ -156,7 +154,6 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
 
         for (LedgerEntry ledgerEntry : ledgerEntries) {
             final EntryImpl storedEntry = (EntryImpl) entries.get((int) ledgerEntry.getEntryId());
-            storedEntry.retain();
             final byte[] storedData = storedEntry.getData();
             final byte[] entryBytes = ledgerEntry.getEntryBytes();
             assertEquals(storedData, entryBytes);
