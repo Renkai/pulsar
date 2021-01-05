@@ -204,10 +204,6 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
             final long startEntryId = index.getStartEntryId(ledgerId);
             if (startEntryId > lastEntry) {
                 throw new Exception("should not happen");
-            } else if (startEntryId > firstEntry) {
-                groupedReaders.add(new GroupedReader(ledgerId, startEntryId, lastEntry, index, inputStreams.get(i),
-                        dataStreams.get(i)));
-                lastEntry = startEntryId - 1;
             } else {
                 groupedReaders.add(new GroupedReader(ledgerId, startEntryId, lastEntry, index, inputStreams.get(i),
                         dataStreams.get(i)));
