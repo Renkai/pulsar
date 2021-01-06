@@ -298,4 +298,6 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
             assertEquals(storedData, entryBytes);
         }
     }
+    //TODO test random read
+    //TODO test read invalid entry id
 }
