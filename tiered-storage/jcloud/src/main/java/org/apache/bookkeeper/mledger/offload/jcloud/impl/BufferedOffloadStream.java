@@ -129,7 +129,6 @@ public class BufferedOffloadStream extends InputStream {
                 + ENTRY_HEADER_SIZE
                 + headEntry.getLength()) {
             final EntryImpl poll = (EntryImpl) entryBuffer.poll();
-            System.out.println("poll.refCnt() = " + poll.refCnt());
             final int entryLength = headEntry.getLength();
             bufferLength.getAndAdd(-entryLength);
             final long entryId = headEntry.getEntryId();

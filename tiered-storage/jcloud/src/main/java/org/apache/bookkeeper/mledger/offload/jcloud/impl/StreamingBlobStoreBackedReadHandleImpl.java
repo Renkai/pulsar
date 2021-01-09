@@ -203,7 +203,8 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
             final StreamingOffloadIndexBlock index = indices.get(i);
             final long startEntryId = index.getStartEntryId(ledgerId);
             if (startEntryId > lastEntry) {
-                throw new Exception("should not happen");
+                log.debug("entries are in earlier indices, skip this segment ledger id: {}, begin entry id: {}",
+                        ledgerId, startEntryId);
             } else {
                 groupedReaders.add(new GroupedReader(ledgerId, startEntryId, lastEntry, index, inputStreams.get(i),
                         dataStreams.get(i)));
