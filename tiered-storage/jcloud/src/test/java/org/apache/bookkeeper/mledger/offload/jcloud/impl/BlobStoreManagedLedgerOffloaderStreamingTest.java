@@ -28,6 +28,7 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.api.LedgerEntries;
 import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
@@ -44,6 +45,7 @@ import org.jclouds.blobstore.BlobStore;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManagedLedgerOffloaderBase {
@@ -382,5 +384,54 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         }
     }
 
-//TODO test read invalid entry id
+    @Test(timeOut = 10000)
+    public void testInvalidEntryIds() throws Exception {
+        LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
+            put(TieredStorageConfiguration.MAX_SEGMENT_SIZE_IN_BYTES, "1000");
+            put(TieredStorageConfiguration.MAX_SEGMENT_TIME_IN_SECOND, "60000");
+        }});
+        ManagedLedger ml = createMockManagedLedger();
+        UUID uuid = UUID.randomUUID();
+        long beginLedger = 0;
+        long beginEntry = 0;
+
+        Map<String, String> driverMeta = new HashMap<String, String>() {{
+            put(TieredStorageConfiguration.METADATA_FIELD_BUCKET, BUCKET);
+        }};
+        OffloaderHandle offloaderHandle = offloader
+                .streamingOffload(ml, uuid, beginLedger, beginEntry, driverMeta).get();
+
+        //Segment should closed because size in bytes full
+        final LinkedList<Entry> entries = new LinkedList<>();
+        for (int i = 0; i < 10; i++) {
+            final byte[] data = new byte[100];
+            random.nextBytes(data);
+            final EntryImpl entry = EntryImpl.create(0, i, data);
+            offloaderHandle.offerEntry(entry);
+            entries.add(entry);
+        }
+
+        final LedgerOffloader.OffloadResult offloadResult = offloaderHandle.getOffloadResultAsync().get();
+        assertEquals(offloadResult.endLedger, 0);
+        assertEquals(offloadResult.endEntry, 9);
+        final OffloadContext.Builder contextBuilder = OffloadContext.newBuilder();
+        contextBuilder.addOffloadSegment(
+                MLDataFormats.OffloadSegment.newBuilder()
+                        .setUidLsb(uuid.getLeastSignificantBits())
+                        .setUidMsb(uuid.getMostSignificantBits())
+                        .setComplete(true).setEndEntryId(9).build());
+
+        final ReadHandle readHandle = offloader.readOffloaded(0, contextBuilder.build(), driverMeta).get();
+        try {
+            readHandle.read(-1, -1);
+            Assert.fail("Shouldn't be able to read anything");
+        } catch (BKException.BKIncorrectParameterException e) {
+        }
+
+        try {
+            readHandle.read(0, 20);
+            Assert.fail("Shouldn't be able to read anything");
+        } catch (BKException.BKIncorrectParameterException e) {
+        }
+    }
 }

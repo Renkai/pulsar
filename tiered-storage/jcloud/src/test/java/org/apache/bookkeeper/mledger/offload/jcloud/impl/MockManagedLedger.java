@@ -18,11 +18,17 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
+import static com.google.common.base.Charsets.UTF_8;
 import com.google.common.base.Predicate;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.client.LedgerMetadataBuilder;
+import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.Entry;
@@ -33,6 +39,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
+import org.apache.bookkeeper.net.BookieId;
+import org.apache.bookkeeper.net.BookieSocketAddress;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 
 @Slf4j
@@ -324,12 +332,30 @@ public class MockManagedLedger implements ManagedLedger {
     public CompletableFuture<LedgerMetadata> getRawLedgerMetadata(long ledgerId) {
         log.info("creating ledger metadata");
         try {
-            final LedgerMetadata metadata = OffloadIndexTest.createLedgerMetadata(ledgerId);
+            final LedgerMetadata metadata = createLedgerMetadata(ledgerId);
             log.info("ledger metadata built");
             return CompletableFuture.completedFuture(metadata);
         } catch (Exception e) {
             log.error("error", e);
             return null;
         }
+    }
+
+    public static LedgerMetadata createLedgerMetadata(long id) throws Exception {
+
+        Map<String, byte[]> metadataCustom = Maps.newHashMap();
+        metadataCustom.put("key1", "value1".getBytes(UTF_8));
+        metadataCustom.put("key7", "value7".getBytes(UTF_8));
+
+        ArrayList<BookieId> bookies = Lists.newArrayList();
+        bookies.add(0, new BookieSocketAddress("127.0.0.1:3181").toBookieId());
+        bookies.add(1, new BookieSocketAddress("127.0.0.2:3181").toBookieId());
+        bookies.add(2, new BookieSocketAddress("127.0.0.3:3181").toBookieId());
+
+        return LedgerMetadataBuilder.create().withEnsembleSize(3).withWriteQuorumSize(3).withAckQuorumSize(2)
+                .withDigestType(DigestType.CRC32C).withPassword("password".getBytes(UTF_8))
+                .withCustomMetadata(metadataCustom).withClosedState().withLastEntryId(19).withLength(100)
+                .newEnsembleEntry(0L, bookies).withId(id).build();
+
     }
 }
