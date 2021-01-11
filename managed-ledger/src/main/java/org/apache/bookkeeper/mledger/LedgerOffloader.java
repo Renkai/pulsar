@@ -26,6 +26,7 @@ import lombok.ToString;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.OffloadNotConsecutiveException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.OffloadSegmentClosedException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -109,10 +110,23 @@ public interface LedgerOffloader {
          */
         boolean canOffer(long size);
 
+        default CompletableFuture<Boolean> asyncCanOffer(long size) {
+            return CompletableFuture.completedFuture(canOffer(size));
+        }
+
         PositionImpl lastOffered();
 
+        default CompletableFuture<PositionImpl> asyncLastOffered() {
+            return CompletableFuture.completedFuture(lastOffered());
+        }
+
         boolean offerEntry(EntryImpl entry) throws OffloadSegmentClosedException,
-                ManagedLedgerException.OffloadNotConsecutiveException;
+                OffloadNotConsecutiveException;
+
+        default CompletableFuture<Boolean> asyncOfferEntry(EntryImpl entry) throws OffloadSegmentClosedException,
+                OffloadNotConsecutiveException {
+            return CompletableFuture.completedFuture(offerEntry(entry));
+        }
 
         CompletableFuture<OffloadResult> getOffloadResultAsync();
     }
