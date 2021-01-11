@@ -33,16 +33,22 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
 /**
- * Interface for offloading ledgers to long-term storage
+ * Interface for offloading ledgers to long-term storage.
  */
 @InterfaceAudience.LimitedPrivate
 @InterfaceStability.Evolving
 public interface LedgerOffloader {
 
+    interface SegmentInfo {
+        boolean isClosed();
+
+        OffloadResult result();
+    }
+
     @ToString
-    class SegmentInfo {
-        public SegmentInfo(UUID uuid, long beginLedger, long beginEntry, String driverName,
-                           Map<String, String> driverMetadata) {
+    class SegmentInfoImpl implements SegmentInfo {
+        public SegmentInfoImpl(UUID uuid, long beginLedger, long beginEntry, String driverName,
+                               Map<String, String> driverMetadata) {
             this.uuid = uuid;
             this.beginLedger = beginLedger;
             this.beginEntry = beginEntry;

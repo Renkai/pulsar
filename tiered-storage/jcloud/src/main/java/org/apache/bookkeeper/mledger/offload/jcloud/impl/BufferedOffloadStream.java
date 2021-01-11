@@ -26,14 +26,14 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.LedgerOffloader.SegmentInfo;
+import org.apache.bookkeeper.mledger.LedgerOffloader.SegmentInfoImpl;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 @Slf4j
 public class BufferedOffloadStream extends InputStream {
     static final int[] BLOCK_END_PADDING = BlockAwareSegmentInputStreamImpl.BLOCK_END_PADDING;
-    private final SegmentInfo segmentInfo;
+    private final SegmentInfoImpl segmentInfo;
 
     private final long ledgerId;
     private final long beginEntryId;
@@ -62,7 +62,7 @@ public class BufferedOffloadStream extends InputStream {
 
     public BufferedOffloadStream(int blockSize,
                                  ConcurrentLinkedQueue<Entry> entryBuffer,
-                                 SegmentInfo segmentInfo,
+                                 SegmentInfoImpl segmentInfo,
                                  long ledgerId,
                                  long beginEntryId,
                                  AtomicLong bufferLength) {

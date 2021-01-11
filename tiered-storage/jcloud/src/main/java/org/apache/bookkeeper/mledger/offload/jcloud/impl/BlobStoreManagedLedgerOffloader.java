@@ -85,7 +85,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private final Map<String, String> userMetadata;
 
     private final ConcurrentMap<BlobStoreLocation, BlobStore> blobStores = new ConcurrentHashMap<>();
-    private SegmentInfo segmentInfo;
+    private SegmentInfoImpl segmentInfo;
     private AtomicLong bufferLength = new AtomicLong(0);
     private AtomicLong segmentLength = new AtomicLong(0);
     final private long maxBufferLength = 10 * 1024 * 1024;
@@ -271,7 +271,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                                                long beginEntry,
                                                                Map<String, String> driverMetadata) {
         this.ml = ml;
-        this.segmentInfo = new SegmentInfo(uuid, beginLedger, beginEntry, config.getDriver(), driverMetadata);
+        this.segmentInfo = new SegmentInfoImpl(uuid, beginLedger, beginEntry, config.getDriver(), driverMetadata);
         log.debug("begin offload with {}:{}", beginLedger, beginEntry);
         this.offloadResult = new CompletableFuture<>();
         blobStore = blobStores.get(config.getBlobStoreLocation());

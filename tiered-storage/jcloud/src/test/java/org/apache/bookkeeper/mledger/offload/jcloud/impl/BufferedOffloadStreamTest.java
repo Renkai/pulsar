@@ -47,7 +47,7 @@ public class BufferedOffloadStreamTest {
         int blockSize = StreamingDataBlockHeaderImpl.getDataStartOffset();
         ConcurrentLinkedQueue<Entry> entryBuffer = new ConcurrentLinkedQueue<>();
         final UUID uuid = UUID.randomUUID();
-        LedgerOffloader.SegmentInfo segmentInfo = new LedgerOffloader.SegmentInfo(uuid, 0, 0, "",
+        LedgerOffloader.SegmentInfoImpl segmentInfo = new LedgerOffloader.SegmentInfoImpl(uuid, 0, 0, "",
                 new HashMap<>());
         AtomicLong bufferLength = new AtomicLong();
         final int entryCount = 10;
@@ -126,7 +126,7 @@ public class BufferedOffloadStreamTest {
         int paddingLen = 10;
         ConcurrentLinkedQueue<Entry> entryBuffer = new ConcurrentLinkedQueue<>();
         final UUID uuid = UUID.randomUUID();
-        LedgerOffloader.SegmentInfo segmentInfo = new LedgerOffloader.SegmentInfo(uuid, 0, 0, "",
+        LedgerOffloader.SegmentInfoImpl segmentInfo = new LedgerOffloader.SegmentInfoImpl(uuid, 0, 0, "",
                 new HashMap<>());
         AtomicLong bufferLength = new AtomicLong();
         final int entryCount = 10;
