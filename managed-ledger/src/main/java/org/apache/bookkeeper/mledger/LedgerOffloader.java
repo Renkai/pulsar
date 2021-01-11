@@ -182,17 +182,19 @@ public interface LedgerOffloader {
                                     Map<String, String> extraMetadata);
 
     /**
-     * Offload the passed in ledger to longterm storage.
+     * Begin offload the passed in ledgers to longterm storage, it will finish
+     * when a segment reached it's size or time.
      * Metadata passed in is for inspection purposes only and should be stored
      * alongside the segment data.
      *
-     * When the returned OffloaderHandle.getOffloadResultAsync completes, the ledger has been persisted to the
+     * When the returned OffloaderHandle.getOffloadResultAsync completes, the corresponding
+     * ledgers has been persisted to the
      * loadterm storage, so it is safe to delete the original copy in bookkeeper.
      *
      * The uid is used to identify an attempt to offload. The implementation should
      * use this to deterministically generate a unique name for the offloaded object.
      * This uid will be stored in the managed ledger metadata before attempting the
-     * call to offload(). If a subsequent or concurrent call to offload() finds
+     * call to offload(). If a subsequent or concurrent call to streamingOffload() finds
      * a uid in the metadata, it will attempt to cleanup this attempt with a call
      * to #deleteOffloaded(ReadHandle,UUID). Once the offload attempt completes,
      * the managed ledger will update its metadata again, to record the completion,
