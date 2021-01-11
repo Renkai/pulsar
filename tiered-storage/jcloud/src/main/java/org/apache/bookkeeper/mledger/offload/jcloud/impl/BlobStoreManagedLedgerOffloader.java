@@ -267,9 +267,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     List<MultipartPart> streamingParts = Lists.newArrayList();
 
     @Override
-    public CompletableFuture<OffloaderHandle> streamingOffload(ManagedLedger ml, UUID uuid, long beginLedger,
-                                                               long beginEntry,
-                                                               Map<String, String> driverMetadata) {
+    public CompletableFuture<OffloadHandle> streamingOffload(ManagedLedger ml, UUID uuid, long beginLedger,
+                                                             long beginEntry,
+                                                             Map<String, String> driverMetadata) {
         this.ml = ml;
         this.segmentInfo = new SegmentInfoImpl(uuid, beginLedger, beginEntry, config.getDriver(), driverMetadata);
         log.debug("begin offload with {}:{}", beginLedger, beginEntry);
@@ -290,7 +290,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         });
         scheduler.schedule(this::closeSegment, segmentCloseTime.toMillis(), TimeUnit.MILLISECONDS);
 
-        return CompletableFuture.completedFuture(new OffloaderHandle() {
+        return CompletableFuture.completedFuture(new OffloadHandle() {
             @Override
             public boolean canOffer(long size) {
                 return BlobStoreManagedLedgerOffloader.this.canOffer(size);

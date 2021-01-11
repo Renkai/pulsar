@@ -34,7 +34,7 @@ import org.apache.bookkeeper.client.api.LedgerEntry;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
-import org.apache.bookkeeper.mledger.LedgerOffloader.OffloaderHandle;
+import org.apache.bookkeeper.mledger.LedgerOffloader.OffloadHandle;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.JCloudBlobStoreProvider;
@@ -101,16 +101,16 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         long beginLedger = 0;
         long beginEntry = 0;
         log.error("try begin offload");
-        OffloaderHandle offloaderHandle = offloader
+        OffloadHandle offloadHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, new HashMap<>()).get();
 
         //Segment should closed because size in bytes full
         for (int i = 0; i < 10; i++) {
             final byte[] data = new byte[100];
             random.nextBytes(data);
-            offloaderHandle.offerEntry(EntryImpl.create(0, i, data));
+            offloadHandle.offerEntry(EntryImpl.create(0, i, data));
         }
-        final LedgerOffloader.OffloadResult offloadResult = offloaderHandle.getOffloadResultAsync().get();
+        final LedgerOffloader.OffloadResult offloadResult = offloadHandle.getOffloadResultAsync().get();
         log.info("Offload reasult: {}", offloadResult);
     }
 
@@ -128,7 +128,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         Map<String, String> driverMeta = new HashMap<String, String>() {{
             put(TieredStorageConfiguration.METADATA_FIELD_BUCKET, BUCKET);
         }};
-        OffloaderHandle offloaderHandle = offloader
+        OffloadHandle offloadHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, driverMeta).get();
 
         //Segment should closed because size in bytes full
@@ -137,11 +137,11 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
             final byte[] data = new byte[100];
             random.nextBytes(data);
             final EntryImpl entry = EntryImpl.create(0, i, data);
-            offloaderHandle.offerEntry(entry);
+            offloadHandle.offerEntry(entry);
             entries.add(entry);
         }
 
-        final LedgerOffloader.OffloadResult offloadResult = offloaderHandle.getOffloadResultAsync().get();
+        final LedgerOffloader.OffloadResult offloadResult = offloadHandle.getOffloadResultAsync().get();
         assertEquals(offloadResult.endLedger, 0);
         assertEquals(offloadResult.endEntry, 9);
         final OffloadContext.Builder contextBuilder = OffloadContext.newBuilder();
@@ -176,7 +176,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         Map<String, String> driverMeta = new HashMap<String, String>() {{
             put(TieredStorageConfiguration.METADATA_FIELD_BUCKET, BUCKET);
         }};
-        OffloaderHandle offloaderHandle = offloader
+        OffloadHandle offloadHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, driverMeta).get();
 
         //Segment should closed because size in bytes full
@@ -186,18 +186,18 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
             final byte[] data = new byte[100];
             random.nextBytes(data);
             final EntryImpl entry = EntryImpl.create(0, i, data);
-            offloaderHandle.offerEntry(entry);
+            offloadHandle.offerEntry(entry);
             entries.add(entry);
         }
         for (int i = 0; i < 10; i++) {
             final byte[] data = new byte[100];
             random.nextBytes(data);
             final EntryImpl entry = EntryImpl.create(1, i, data);
-            offloaderHandle.offerEntry(entry);
+            offloadHandle.offerEntry(entry);
             ledger2Entries.add(entry);
         }
 
-        final LedgerOffloader.OffloadResult offloadResult = offloaderHandle.getOffloadResultAsync().get();
+        final LedgerOffloader.OffloadResult offloadResult = offloadHandle.getOffloadResultAsync().get();
         assertEquals(offloadResult.endLedger, 1);
         assertEquals(offloadResult.endEntry, 9);
         final OffloadContext.Builder contextBuilder = OffloadContext.newBuilder();
@@ -247,7 +247,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         Map<String, String> driverMeta = new HashMap<String, String>() {{
             put(TieredStorageConfiguration.METADATA_FIELD_BUCKET, BUCKET);
         }};
-        OffloaderHandle offloaderHandle = offloader
+        OffloadHandle offloadHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, driverMeta).get();
 
         //Segment should closed because size in bytes full
@@ -256,25 +256,25 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
             final byte[] data = new byte[100];
             random.nextBytes(data);
             final EntryImpl entry = EntryImpl.create(0, i, data);
-            offloaderHandle.offerEntry(entry);
+            offloadHandle.offerEntry(entry);
             entries.add(entry);
         }
 
-        final LedgerOffloader.OffloadResult offloadResult = offloaderHandle.getOffloadResultAsync().get();
+        final LedgerOffloader.OffloadResult offloadResult = offloadHandle.getOffloadResultAsync().get();
         assertEquals(offloadResult.endLedger, 0);
         assertEquals(offloadResult.endEntry, 9);
 
         //Segment should closed because size in bytes full
-        OffloaderHandle offloaderHandle2 = offloader2
+        OffloadHandle offloadHandle2 = offloader2
                 .streamingOffload(ml, uuid2, beginLedger, 10, driverMeta).get();
         for (int i = 0; i < 10; i++) {
             final byte[] data = new byte[100];
             random.nextBytes(data);
             final EntryImpl entry = EntryImpl.create(0, i + 10, data);
-            offloaderHandle2.offerEntry(entry);
+            offloadHandle2.offerEntry(entry);
             entries.add(entry);
         }
-        final LedgerOffloader.OffloadResult offloadResult2 = offloaderHandle2.getOffloadResultAsync().get();
+        final LedgerOffloader.OffloadResult offloadResult2 = offloadHandle2.getOffloadResultAsync().get();
         assertEquals(offloadResult2.endLedger, 0);
         assertEquals(offloadResult2.endEntry, 19);
 
@@ -320,7 +320,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         Map<String, String> driverMeta = new HashMap<String, String>() {{
             put(TieredStorageConfiguration.METADATA_FIELD_BUCKET, BUCKET);
         }};
-        OffloaderHandle offloaderHandle = offloader
+        OffloadHandle offloadHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, driverMeta).get();
 
         //Segment should closed because size in bytes full
@@ -329,25 +329,25 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
             final byte[] data = new byte[100];
             random.nextBytes(data);
             final EntryImpl entry = EntryImpl.create(0, i, data);
-            offloaderHandle.offerEntry(entry);
+            offloadHandle.offerEntry(entry);
             entries.add(entry);
         }
 
-        final LedgerOffloader.OffloadResult offloadResult = offloaderHandle.getOffloadResultAsync().get();
+        final LedgerOffloader.OffloadResult offloadResult = offloadHandle.getOffloadResultAsync().get();
         assertEquals(offloadResult.endLedger, 0);
         assertEquals(offloadResult.endEntry, 9);
 
         //Segment should closed because size in bytes full
-        OffloaderHandle offloaderHandle2 = offloader2
+        OffloadHandle offloadHandle2 = offloader2
                 .streamingOffload(ml, uuid2, beginLedger, 10, driverMeta).get();
         for (int i = 0; i < 10; i++) {
             final byte[] data = new byte[100];
             random.nextBytes(data);
             final EntryImpl entry = EntryImpl.create(0, i + 10, data);
-            offloaderHandle2.offerEntry(entry);
+            offloadHandle2.offerEntry(entry);
             entries.add(entry);
         }
-        final LedgerOffloader.OffloadResult offloadResult2 = offloaderHandle2.getOffloadResultAsync().get();
+        final LedgerOffloader.OffloadResult offloadResult2 = offloadHandle2.getOffloadResultAsync().get();
         assertEquals(offloadResult2.endLedger, 0);
         assertEquals(offloadResult2.endEntry, 19);
 
@@ -398,7 +398,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         Map<String, String> driverMeta = new HashMap<String, String>() {{
             put(TieredStorageConfiguration.METADATA_FIELD_BUCKET, BUCKET);
         }};
-        OffloaderHandle offloaderHandle = offloader
+        OffloadHandle offloadHandle = offloader
                 .streamingOffload(ml, uuid, beginLedger, beginEntry, driverMeta).get();
 
         //Segment should closed because size in bytes full
@@ -407,11 +407,11 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
             final byte[] data = new byte[100];
             random.nextBytes(data);
             final EntryImpl entry = EntryImpl.create(0, i, data);
-            offloaderHandle.offerEntry(entry);
+            offloadHandle.offerEntry(entry);
             entries.add(entry);
         }
 
-        final LedgerOffloader.OffloadResult offloadResult = offloaderHandle.getOffloadResultAsync().get();
+        final LedgerOffloader.OffloadResult offloadResult = offloadHandle.getOffloadResultAsync().get();
         assertEquals(offloadResult.endLedger, 0);
         assertEquals(offloadResult.endEntry, 9);
         final OffloadContext.Builder contextBuilder = OffloadContext.newBuilder();

@@ -101,7 +101,7 @@ public interface LedgerOffloader {
      * Used to store driver info, buffer entries, mark progress, etc.
      * Create one per second.
      */
-    interface OffloaderHandle {
+    interface OffloadHandle {
 
         /**
          * return true when both buffer have enough size and ledger/entry id is next to the current one.
@@ -201,9 +201,9 @@ public interface LedgerOffloader {
      *
      * @return an OffloaderHandle, which when `completeFuture()` completed, denotes that the offload has been successful.
      */
-    default CompletableFuture<OffloaderHandle> streamingOffload(ManagedLedger ml, UUID uuid, long beginLedger,
-                                                                long beginEntry,
-                                                                Map<String, String> driverMetadata) {
+    default CompletableFuture<OffloadHandle> streamingOffload(ManagedLedger ml, UUID uuid, long beginLedger,
+                                                              long beginEntry,
+                                                              Map<String, String> driverMetadata) {
         throw new UnsupportedOperationException();
     }
 
