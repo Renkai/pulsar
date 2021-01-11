@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader.SegmentInfoImpl;
-import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 @Slf4j
@@ -128,7 +127,7 @@ public class BufferedOffloadStream extends InputStream {
         if (blockSize >= offset
                 + ENTRY_HEADER_SIZE
                 + headEntry.getLength()) {
-            final EntryImpl poll = (EntryImpl) entryBuffer.poll();
+            entryBuffer.poll();
             final int entryLength = headEntry.getLength();
             bufferLength.getAndAdd(-entryLength);
             final long entryId = headEntry.getEntryId();

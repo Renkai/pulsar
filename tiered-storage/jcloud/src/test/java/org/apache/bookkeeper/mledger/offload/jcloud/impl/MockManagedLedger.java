@@ -41,7 +41,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
 import org.apache.bookkeeper.net.BookieId;
 import org.apache.bookkeeper.net.BookieSocketAddress;
-import org.apache.pulsar.common.api.proto.PulsarApi;
+import org.apache.pulsar.common.api.proto.CommandSubscribe;
 
 @Slf4j
 public class MockManagedLedger implements ManagedLedger {
@@ -105,13 +105,13 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public ManagedCursor openCursor(String name, PulsarApi.CommandSubscribe.InitialPosition initialPosition) throws
+    public ManagedCursor openCursor(String name, CommandSubscribe.InitialPosition initialPosition) throws
             InterruptedException, ManagedLedgerException {
         return null;
     }
 
     @Override
-    public ManagedCursor openCursor(String name, PulsarApi.CommandSubscribe.InitialPosition initialPosition,
+    public ManagedCursor openCursor(String name, CommandSubscribe.InitialPosition initialPosition,
                                     Map<String, Long> properties) throws InterruptedException, ManagedLedgerException {
         return null;
     }
@@ -129,7 +129,7 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public ManagedCursor newNonDurableCursor(Position startPosition, String subscriptionName,
-                                             PulsarApi.CommandSubscribe.InitialPosition initialPosition) throws
+                                             CommandSubscribe.InitialPosition initialPosition) throws
             ManagedLedgerException {
         return null;
     }
@@ -150,13 +150,13 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public void asyncOpenCursor(String name, PulsarApi.CommandSubscribe.InitialPosition initialPosition,
+    public void asyncOpenCursor(String name, CommandSubscribe.InitialPosition initialPosition,
                                 AsyncCallbacks.OpenCursorCallback callback, Object ctx) {
 
     }
 
     @Override
-    public void asyncOpenCursor(String name, PulsarApi.CommandSubscribe.InitialPosition initialPosition,
+    public void asyncOpenCursor(String name, CommandSubscribe.InitialPosition initialPosition,
                                 Map<String, Long> properties, AsyncCallbacks.OpenCursorCallback callback, Object ctx) {
 
     }
