@@ -186,7 +186,7 @@ public interface LedgerOffloader {
      * Metadata passed in is for inspection purposes only and should be stored
      * alongside the segment data.
      *
-     * When the returned future completes, the ledger has been persisted to the
+     * When the returned OffloaderHandle.getOffloadResultAsync completes, the ledger has been persisted to the
      * loadterm storage, so it is safe to delete the original copy in bookkeeper.
      *
      * The uid is used to identify an attempt to offload. The implementation should
