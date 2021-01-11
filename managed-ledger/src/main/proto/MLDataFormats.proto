@@ -28,7 +28,7 @@ message KeyValue {
 
 message OffloadDriverMetadata {
     required string name = 1;
-  repeated KeyValue properties = 2;
+    repeated KeyValue properties = 2;
 }
 
 message OffloadContext {
@@ -53,13 +53,13 @@ message OffloadSegment {
 }
 
 message ManagedLedgerInfo {
-  message LedgerInfo {
-    required int64 ledgerId = 1;
-    optional int64 entries = 2;
-    optional int64 size = 3;
-    optional int64 timestamp = 4;
-    optional OffloadContext offloadContext = 5;
-  }
+    message LedgerInfo {
+    	required int64 ledgerId = 1;
+    	optional int64 entries  = 2;
+    	optional int64 size     = 3;
+    	optional int64 timestamp = 4;
+        optional OffloadContext offloadContext = 5;
+    }
 
   repeated LedgerInfo ledgerInfo = 1;
 
