@@ -241,7 +241,7 @@ public interface LedgerOffloader {
 
     default CompletableFuture<ReadHandle> readOffloaded(long ledgerId, MLDataFormats.OffloadContext ledgerContext,
                                                         Map<String, String> offloadDriverMetadata) {
-        throw new UnsupportedClassVersionError();
+        throw new UnsupportedOperationException();
     }
 
     default CompletableFuture<Void> deleteOffloaded(UUID uid,
