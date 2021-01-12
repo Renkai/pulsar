@@ -162,7 +162,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         }
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void testReadAndWriteAcrossLedger() throws Exception {
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_SEGMENT_SIZE_IN_BYTES, "2000");
@@ -228,7 +228,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         }
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void testReadAndWriteAcrossSegment() throws Exception {
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_SEGMENT_SIZE_IN_BYTES, "1000");
