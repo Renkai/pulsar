@@ -275,7 +275,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         log.debug("begin offload with {}:{}", beginLedger, beginEntry);
         this.offloadResult = new CompletableFuture<>();
         blobStore = blobStores.get(config.getBlobStoreLocation());
-        streamingIndexBuilder = new StreamingOffloadIndexBlockBuilderImpl();
+        streamingIndexBuilder = StreamingOffloadIndexBlockBuilder.create();
         streamingDataBlockKey = segmentInfo.uuid.toString();
         streamingDataIndexKey = String.format("%s-index", segmentInfo.uuid);
         BlobBuilder blobBuilder = blobStore.blobBuilder(streamingDataBlockKey);
@@ -358,7 +358,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             try {
                 blobStore.completeMultipartUpload(streamingMpu, streamingParts);
                 streamingIndexBuilder.withDataObjectLength(dataObjectLength + streamingBlockSize);
-                final StreamingOffloadIndexBlock index = streamingIndexBuilder.build();
+                final StreamingOffloadIndexBlock index = streamingIndexBuilder.buildStreaming();
                 final StreamingOffloadIndexBlock.IndexInputStream indexStream = index.toStream();
                 final BlobBuilder indexBlobBuilder = blobStore.blobBuilder(streamingDataIndexKey);
                 DataBlockUtils.addVersionInfo(indexBlobBuilder, userMetadata);

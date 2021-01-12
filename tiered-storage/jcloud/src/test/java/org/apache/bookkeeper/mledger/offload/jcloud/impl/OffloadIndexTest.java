@@ -202,7 +202,7 @@ public class OffloadIndexTest {
         InputStream out2 = indexBlock.toStream();
         int streamLength = out2.available();
         out2.mark(0);
-        OffloadIndexBlock indexBlock2 = blockBuilder.fromStream(out2);
+        OffloadIndexBlock indexBlock2 = blockBuilder.indexFromStream(out2);
         // 1. verify metadata that got from inputstream success.
         LedgerMetadata metadata2 = indexBlock2.getLedgerMetadata();
         log.debug("built metadata: {}", metadata2.toString());
@@ -220,7 +220,7 @@ public class OffloadIndexTest {
         byte streamContent[] = new byte[streamLength];
         // stream with all 0, simulate junk data, should throw exception for header magic not match.
         try(InputStream stream3 = new ByteArrayInputStream(streamContent, 0, streamLength)) {
-            OffloadIndexBlock indexBlock3 = blockBuilder.fromStream(stream3);
+            OffloadIndexBlock indexBlock3 = blockBuilder.indexFromStream(stream3);
             fail("Should throw IOException");
         } catch (Exception e) {
             assertTrue(e instanceof IOException);
@@ -231,7 +231,7 @@ public class OffloadIndexTest {
         out2.read(streamContent);
         try(InputStream stream4 =
                 new ByteArrayInputStream(streamContent, 0, streamLength - 1)) {
-            OffloadIndexBlock indexBlock4 = blockBuilder.fromStream(stream4);
+            OffloadIndexBlock indexBlock4 = blockBuilder.indexFromStream(stream4);
             fail("Should throw EOFException");
         } catch (Exception e) {
             assertTrue(e instanceof java.io.EOFException);

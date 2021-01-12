@@ -270,7 +270,7 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
             log.debug("indexKey blob: {} {}", indexKey, blob);
             versionCheck.check(indexKey, blob);
             StreamingOffloadIndexBlockBuilder indexBuilder = StreamingOffloadIndexBlockBuilder.create();
-            StreamingOffloadIndexBlock index = indexBuilder.fromStream(blob.getPayload().openStream());
+            StreamingOffloadIndexBlock index = indexBuilder.streamingIndexFromStream(blob.getPayload().openStream());
 
             BackedInputStream inputStream = new BlobStoreBackedInputStreamImpl(blobStore, bucket, key,
                     versionCheck,

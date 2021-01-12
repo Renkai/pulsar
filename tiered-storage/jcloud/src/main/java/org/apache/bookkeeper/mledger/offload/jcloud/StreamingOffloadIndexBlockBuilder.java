@@ -23,7 +23,7 @@ import java.io.InputStream;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience.LimitedPrivate;
 import org.apache.bookkeeper.common.annotation.InterfaceStability.Unstable;
-import org.apache.bookkeeper.mledger.offload.jcloud.impl.StreamingOffloadIndexBlockBuilderImpl;
+import org.apache.bookkeeper.mledger.offload.jcloud.impl.OffloadIndexBlockBuilderImpl;
 
 /**
  * Interface for builder of index block used for offload a ledger to long term storage.
@@ -67,17 +67,17 @@ public interface StreamingOffloadIndexBlockBuilder {
     /**
      * Finalize the immutable OffloadIndexBlock.
      */
-    StreamingOffloadIndexBlock build();
+    StreamingOffloadIndexBlock buildStreaming();
 
     /**
      * Construct OffloadIndex from an InputStream.
      */
-    StreamingOffloadIndexBlock fromStream(InputStream is) throws IOException;
+    StreamingOffloadIndexBlock streamingIndexFromStream(InputStream is) throws IOException;
 
     /**
      * create an OffloadIndexBlockBuilder.
      */
     static StreamingOffloadIndexBlockBuilder create() {
-        return new StreamingOffloadIndexBlockBuilderImpl();
+        return new OffloadIndexBlockBuilderImpl();
     }
 }
