@@ -92,7 +92,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     final private ConcurrentLinkedQueue<Entry> offloadBuffer = new ConcurrentLinkedQueue<>();
     private CompletableFuture<OffloadResult> offloadResult;
     private volatile PositionImpl lastOfferedPosition = PositionImpl.latest;
-    private final Duration segmentCloseTime;
+    private final Duration maxSegmentCloseTime;
+    private final long minSegmentCloseTimeMillis;
+    private long segmentBeginTimeMillis;
     private final long maxSegmentLength;
     private final int streamingBlockSize;
     private ManagedLedger ml;
@@ -112,8 +114,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         this.userMetadata = userMetadata;
         this.config = config;
         this.streamingBlockSize = config.getMaxBlockSizeInBytes();
-        this.segmentCloseTime = Duration.ofSeconds(config.getMaxSegmentTimeInSecond());
+        this.maxSegmentCloseTime = Duration.ofSeconds(config.getMaxSegmentTimeInSecond());
         this.maxSegmentLength = config.getMaxSegmentSizeInBytes();
+        this.minSegmentCloseTimeMillis = Duration.ofSeconds(config.getMinSegmentTimeInSecond()).toMillis();
 
         if (!Strings.isNullOrEmpty(config.getRegion())) {
             this.writeLocation = new LocationBuilder()
@@ -288,7 +291,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             log.info("start offloading segment: {}", segmentInfo);
             streamingOffloadLoop(1, 0);
         });
-        scheduler.schedule(this::closeSegment, segmentCloseTime.toMillis(), TimeUnit.MILLISECONDS);
+        segmentBeginTimeMillis = System.currentTimeMillis();
+        scheduler.schedule(this::closeSegment, maxSegmentCloseTime.toMillis(), TimeUnit.MILLISECONDS);
 
         return CompletableFuture.completedFuture(new OffloadHandle() {
             @Override
@@ -400,7 +404,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             bufferLength.getAndAdd(entry.getLength());
             segmentLength.getAndAdd(entry.getLength());
             lastOfferedPosition = entry.getPosition();
-            if (segmentLength.get() >= maxSegmentLength) {
+            if (segmentLength.get() >= maxSegmentLength
+                    && System.currentTimeMillis() - segmentBeginTimeMillis >= minSegmentCloseTimeMillis) {
                 closeSegment();
             }
             return true;
