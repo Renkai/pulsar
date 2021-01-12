@@ -94,6 +94,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
     public void testHappyCase() throws Exception {
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_SEGMENT_SIZE_IN_BYTES, "1000");
+            put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
         }});
         ManagedLedger ml = createMockManagedLedger();
@@ -118,6 +119,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
     public void testReadAndWrite() throws Exception {
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_SEGMENT_SIZE_IN_BYTES, "1000");
+            put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
         }});
         ManagedLedger ml = createMockManagedLedger();
@@ -166,6 +168,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
     public void testReadAndWriteAcrossLedger() throws Exception {
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_SEGMENT_SIZE_IN_BYTES, "2000");
+            put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
         }});
         ManagedLedger ml = createMockManagedLedger();
@@ -232,10 +235,12 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
     public void testReadAndWriteAcrossSegment() throws Exception {
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_SEGMENT_SIZE_IN_BYTES, "1000");
+            put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
         }});
         LedgerOffloader offloader2 = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_SEGMENT_SIZE_IN_BYTES, "1000");
+            put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
         }});
         ManagedLedger ml = createMockManagedLedger();
@@ -305,10 +310,12 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
     public void testRandomRead() throws Exception {
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_SEGMENT_SIZE_IN_BYTES, "1000");
+            put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
         }});
         LedgerOffloader offloader2 = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_SEGMENT_SIZE_IN_BYTES, "1000");
+            put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
         }});
         ManagedLedger ml = createMockManagedLedger();
@@ -388,6 +395,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
     public void testInvalidEntryIds() throws Exception {
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_SEGMENT_SIZE_IN_BYTES, "1000");
+            put(config.getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE).get(0), "5242880");
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "60000");
         }});
         ManagedLedger ml = createMockManagedLedger();

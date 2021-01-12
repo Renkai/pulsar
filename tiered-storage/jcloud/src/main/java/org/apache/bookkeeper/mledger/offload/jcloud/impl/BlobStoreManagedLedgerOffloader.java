@@ -359,6 +359,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         log.debug("UploadMultipartPart. container: {}, blobName: {}, partId: {}, mpu: {}",
                 config.getBucket(), streamingDataBlockKey, partId, streamingMpu.id());
         if (segmentInfo.isClosed() && offloadBuffer.isEmpty()) {
+            log.debug("segment closed, buffer is empty");
             try {
                 blobStore.completeMultipartUpload(streamingMpu, streamingParts);
                 streamingIndexBuilder.withDataObjectLength(dataObjectLength + streamingBlockSize);
@@ -379,7 +380,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 log.error("streaming offload failed", e);
                 offloadResult.completeExceptionally(e);
             }
+            log.debug("offload done");
         } else {
+            log.debug("continue offload loop");
             scheduler.chooseThread(segmentInfo)
                     .execute(() -> streamingOffloadLoop(partId + 1, dataObjectLength + streamingBlockSize));
         }

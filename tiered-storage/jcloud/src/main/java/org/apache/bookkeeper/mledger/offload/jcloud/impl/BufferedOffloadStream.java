@@ -93,7 +93,7 @@ public class BufferedOffloadStream extends InputStream {
             }
         }
 
-        if (blockSize == offset) {
+        if (blockSize <= offset) {
             return -1;
         } else if (validDataOffset != NOT_INITIALIZED) {
             return BLOCK_END_PADDING[(offset++ - validDataOffset) % BLOCK_END_PADDING.length];
