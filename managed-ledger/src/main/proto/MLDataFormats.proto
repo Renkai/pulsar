@@ -45,10 +45,10 @@ message OffloadSegment {
   optional int64 uidMsb = 1;
   optional int64 uidLsb = 2;
   optional bool complete = 3;
-  optional int64 assignedTimestamp = 5; //timestamp in millisecond
-  optional int64 offloadedTimestamp = 6; //timestamp in millisecond
-  optional int64 endEntryId = 7;
-  optional OffloadDriverMetadata driverMetadata = 8;
+  optional int64 assignedTimestamp = 4; //timestamp in millisecond
+  optional int64 offloadedTimestamp = 5; //timestamp in millisecond
+  optional int64 endEntryId = 6;
+  optional OffloadDriverMetadata driverMetadata = 7;
 }
 
 message ManagedLedgerInfo {
