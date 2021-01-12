@@ -58,7 +58,7 @@ public class StreamingOffloadIndexTest {
 
         // verify getIndexEntryForEntry
         OffloadIndexEntry entry1 = indexBlock.getIndexEntryForEntry(ledgerId, 0);
-        assertEquals(entry1.getFirstEntryId(), 0);
+        assertEquals(entry1.getEntryId(), 0);
         assertEquals(entry1.getPartId(), 2);
         assertEquals(entry1.getOffset(), 0);
 
@@ -66,7 +66,7 @@ public class StreamingOffloadIndexTest {
         assertEquals(entry11, entry1);
 
         OffloadIndexEntry entry2 = indexBlock.getIndexEntryForEntry(ledgerId, 1000);
-        assertEquals(entry2.getFirstEntryId(), 1000);
+        assertEquals(entry2.getEntryId(), 1000);
         assertEquals(entry2.getPartId(), 3);
         assertEquals(entry2.getOffset(), 64 * 1024 * 1024);
 
@@ -75,7 +75,7 @@ public class StreamingOffloadIndexTest {
 
         OffloadIndexEntry entry3 = indexBlock.getIndexEntryForEntry(ledgerId, 2000);
 
-        assertEquals(entry3.getFirstEntryId(), 2000);
+        assertEquals(entry3.getEntryId(), 2000);
         assertEquals(entry3.getPartId(), 4);
         assertEquals(entry3.getOffset(), 2 * 64 * 1024 * 1024);
 
@@ -123,15 +123,15 @@ public class StreamingOffloadIndexTest {
         OffloadIndexEntry e3 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
                 wrapper.readLong(), dataHeaderLength);
 
-        assertEquals(e1.getFirstEntryId(), entry1.getFirstEntryId());
+        assertEquals(e1.getEntryId(), entry1.getEntryId());
         assertEquals(e1.getPartId(), entry1.getPartId());
         assertEquals(e1.getOffset(), entry1.getOffset());
         assertEquals(e1.getDataOffset(), entry1.getDataOffset());
-        assertEquals(e2.getFirstEntryId(), entry2.getFirstEntryId());
+        assertEquals(e2.getEntryId(), entry2.getEntryId());
         assertEquals(e2.getPartId(), entry2.getPartId());
         assertEquals(e2.getOffset(), entry2.getOffset());
         assertEquals(e2.getDataOffset(), entry2.getDataOffset());
-        assertEquals(e3.getFirstEntryId(), entry3.getFirstEntryId());
+        assertEquals(e3.getEntryId(), entry3.getEntryId());
         assertEquals(e3.getPartId(), entry3.getPartId());
         assertEquals(e3.getOffset(), entry3.getOffset());
         assertEquals(e3.getDataOffset(), entry3.getDataOffset());
@@ -207,7 +207,7 @@ public class StreamingOffloadIndexTest {
 
         // verify getIndexEntryForEntry
         OffloadIndexEntry entry1 = indexBlock.getIndexEntryForEntry(ledgerId1, 1000);
-        assertEquals(entry1.getFirstEntryId(), 1000);
+        assertEquals(entry1.getEntryId(), 1000);
         assertEquals(entry1.getPartId(), 2);
         assertEquals(entry1.getOffset(), 0);
 
@@ -215,7 +215,7 @@ public class StreamingOffloadIndexTest {
         assertEquals(entry11, entry1);
 
         OffloadIndexEntry entry2 = indexBlock.getIndexEntryForEntry(ledgerId2, 0);
-        assertEquals(entry2.getFirstEntryId(), 0);
+        assertEquals(entry2.getEntryId(), 0);
         assertEquals(entry2.getPartId(), 3);
         assertEquals(entry2.getOffset(), 64 * 1024 * 1024);
 
@@ -224,7 +224,7 @@ public class StreamingOffloadIndexTest {
 
         OffloadIndexEntry entry3 = indexBlock.getIndexEntryForEntry(ledgerId2, 1000);
 
-        assertEquals(entry3.getFirstEntryId(), 1000);
+        assertEquals(entry3.getEntryId(), 1000);
         assertEquals(entry3.getPartId(), 4);
         assertEquals(entry3.getOffset(), 2 * 64 * 1024 * 1024);
 
@@ -268,7 +268,7 @@ public class StreamingOffloadIndexTest {
         OffloadIndexEntry e1 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
                 wrapper.readLong(), dataHeaderLength);
 
-        assertEquals(e1.getFirstEntryId(), entry1.getFirstEntryId());
+        assertEquals(e1.getEntryId(), entry1.getEntryId());
         assertEquals(e1.getPartId(), entry1.getPartId());
         assertEquals(e1.getOffset(), entry1.getOffset());
         assertEquals(e1.getDataOffset(), entry1.getDataOffset());
@@ -285,11 +285,11 @@ public class StreamingOffloadIndexTest {
         OffloadIndexEntry e3 = OffloadIndexEntryImpl.of(wrapper.readLong(), wrapper.readInt(),
                 wrapper.readLong(), dataHeaderLength);
 
-        assertEquals(e2.getFirstEntryId(), entry2.getFirstEntryId());
+        assertEquals(e2.getEntryId(), entry2.getEntryId());
         assertEquals(e2.getPartId(), entry2.getPartId());
         assertEquals(e2.getOffset(), entry2.getOffset());
         assertEquals(e2.getDataOffset(), entry2.getDataOffset());
-        assertEquals(e3.getFirstEntryId(), entry3.getFirstEntryId());
+        assertEquals(e3.getEntryId(), entry3.getEntryId());
         assertEquals(e3.getPartId(), entry3.getPartId());
         assertEquals(e3.getOffset(), entry3.getOffset());
         assertEquals(e3.getDataOffset(), entry3.getDataOffset());

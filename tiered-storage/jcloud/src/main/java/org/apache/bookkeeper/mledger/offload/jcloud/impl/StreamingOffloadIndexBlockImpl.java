@@ -77,7 +77,7 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
             final TreeMap<Long, OffloadIndexEntryImpl> inLedger = block.indexEntries
                     .getOrDefault(ledgerId, new TreeMap<>());
             list.forEach(indexEntry -> {
-                inLedger.put(indexEntry.getFirstEntryId(), indexEntry);
+                inLedger.put(indexEntry.getEntryId(), indexEntry);
             });
             block.indexEntries.put(ledgerId, inLedger);
         });
@@ -121,7 +121,7 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
     }
 
     public long getStartEntryId(long ledgerId) {
-        return this.indexEntries.get(ledgerId).firstEntry().getValue().getFirstEntryId();
+        return this.indexEntries.get(ledgerId).firstEntry().getValue().getEntryId();
     }
 
     @Override
@@ -198,7 +198,7 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
                     .writeInt(ledgerMetadataByte.length)
                     .writeBytes(ledgerMetadataByte);
             ledgerIndexEntries.values().forEach(idxEntry -> {
-                out.writeLong(idxEntry.getFirstEntryId())
+                out.writeLong(idxEntry.getEntryId())
                         .writeInt(idxEntry.getPartId())
                         .writeLong(idxEntry.getOffset());
             });

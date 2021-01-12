@@ -28,14 +28,14 @@ public class OffloadIndexEntryImpl implements OffloadIndexEntry {
         return new OffloadIndexEntryImpl(firstEntryId, partId, offset, blockHeaderSize);
     }
 
-    private final long firstEntryId;
+    private final long entryId;
     private final int partId;
     private final long offset;
     private final long blockHeaderSize;
 
     @Override
-    public long getFirstEntryId() {
-        return firstEntryId;
+    public long getEntryId() {
+        return entryId;
     }
 
     @Override
@@ -53,8 +53,8 @@ public class OffloadIndexEntryImpl implements OffloadIndexEntry {
         return offset + blockHeaderSize;
     }
 
-    private OffloadIndexEntryImpl(long firstEntryId, int partId, long offset, long blockHeaderSize) {
-        this.firstEntryId = firstEntryId;
+    private OffloadIndexEntryImpl(long entryId, int partId, long offset, long blockHeaderSize) {
+        this.entryId = entryId;
         this.partId = partId;
         this.offset = offset;
         this.blockHeaderSize = blockHeaderSize;
@@ -63,7 +63,7 @@ public class OffloadIndexEntryImpl implements OffloadIndexEntry {
     @Override
     public String toString() {
         return String.format("[eid:%d, part:%d, offset:%d, doffset:%d]",
-                firstEntryId, partId, offset, getDataOffset());
+                entryId, partId, offset, getDataOffset());
     }
 }
 
