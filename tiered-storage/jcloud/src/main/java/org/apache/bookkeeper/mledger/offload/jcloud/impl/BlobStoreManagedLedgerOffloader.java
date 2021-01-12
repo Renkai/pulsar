@@ -94,7 +94,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private volatile PositionImpl lastOfferedPosition = PositionImpl.latest;
     private final Duration maxSegmentCloseTime;
     private final long minSegmentCloseTimeMillis;
-    private long segmentBeginTimeMillis;
+    private final long segmentBeginTimeMillis;
     private final long maxSegmentLength;
     private final int streamingBlockSize;
     private ManagedLedger ml;
@@ -117,6 +117,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         this.maxSegmentCloseTime = Duration.ofSeconds(config.getMaxSegmentTimeInSecond());
         this.maxSegmentLength = config.getMaxSegmentSizeInBytes();
         this.minSegmentCloseTimeMillis = Duration.ofSeconds(config.getMinSegmentTimeInSecond()).toMillis();
+        this.segmentBeginTimeMillis = System.currentTimeMillis();
 
         if (!Strings.isNullOrEmpty(config.getRegion())) {
             this.writeLocation = new LocationBuilder()
@@ -291,7 +292,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             log.info("start offloading segment: {}", segmentInfo);
             streamingOffloadLoop(1, 0);
         });
-        segmentBeginTimeMillis = System.currentTimeMillis();
         scheduler.schedule(this::closeSegment, maxSegmentCloseTime.toMillis(), TimeUnit.MILLISECONDS);
 
         return CompletableFuture.completedFuture(new OffloadHandle() {
