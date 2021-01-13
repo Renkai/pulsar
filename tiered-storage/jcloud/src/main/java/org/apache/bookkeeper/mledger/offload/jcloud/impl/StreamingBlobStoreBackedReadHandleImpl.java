@@ -96,7 +96,7 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
 
     @Override
     public LedgerMetadata getLedgerMetadata() {
-        return indices.get(0).getLedgerMetadata().get(ledgerId);
+        return indices.get(0).getLedgerMetadata(ledgerId);
     }
 
     @Override

@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
-import static org.apache.bookkeeper.mledger.offload.OffloadUtils.buildLedgerMetadataFormat;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufInputStream;
@@ -30,11 +30,15 @@ import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
+import java.util.Objects;
 import java.util.TreeMap;
+import org.apache.bookkeeper.client.api.DigestType;
 import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexEntry;
 import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlock;
-import org.apache.bookkeeper.proto.DataFormats.LedgerMetadataFormat;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
+import org.apache.bookkeeper.net.BookieId;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +48,8 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
 
     private static final int INDEX_MAGIC_WORD = 0x3D1FB0BC;
 
-    private Map<Long, LedgerMetadata> segmentMetadata;
+    private Map<Long, LedgerInfo> segmentMetadata;
+    final private Map<Long, LedgerMetadata> compatibleMetadata = Maps.newTreeMap();
     private long dataObjectLength;
     private long dataHeaderLength;
     //    private TreeMap<Long, OffloadIndexEntryImpl> indexEntries;
@@ -64,7 +69,7 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
         this.recyclerHandle = recyclerHandle;
     }
 
-    public static StreamingOffloadIndexBlockImpl get(Map<Long, LedgerMetadata> metadata, long dataObjectLength,
+    public static StreamingOffloadIndexBlockImpl get(Map<Long, LedgerInfo> metadata, long dataObjectLength,
                                                      long dataHeaderLength,
                                                      Map<Long, List<OffloadIndexEntryImpl>> entries) {
         StreamingOffloadIndexBlockImpl block = RECYCLER.get();
@@ -105,12 +110,11 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
 
     @Override
     public OffloadIndexEntry getIndexEntryForEntry(long ledgerId, long messageEntryId) throws IOException {
-        //TODO deal with data exists in another object
-        if (messageEntryId > segmentMetadata.get(ledgerId).getLastEntryId()) {
+        if (messageEntryId > getLedgerMetadata(ledgerId).getLastEntryId()) {
             log.warn("Try to get entry: {}, which beyond lastEntryId {}, return null",
-                    messageEntryId, segmentMetadata.get(ledgerId).getLastEntryId());
+                    messageEntryId, getLedgerMetadata(ledgerId).getLastEntryId());
             throw new IndexOutOfBoundsException("Entry index: " + messageEntryId
-                    + " beyond lastEntryId: " + segmentMetadata.get(ledgerId).getLastEntryId());
+                    + " beyond lastEntryId: " + getLedgerMetadata(ledgerId).getLastEntryId());
         }
         // find the greatest mapping Id whose entryId <= messageEntryId
         return this.indexEntries.get(ledgerId).floorEntry(messageEntryId).getValue();
@@ -131,8 +135,16 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
     }
 
     @Override
-    public Map<Long, LedgerMetadata> getLedgerMetadata() {
-        return this.segmentMetadata;
+    public LedgerMetadata getLedgerMetadata(long ledgerId) {
+        if (compatibleMetadata.containsKey(ledgerId)) {
+            return compatibleMetadata.get(ledgerId);
+        } else if (segmentMetadata.containsKey(ledgerId)) {
+            final CompatibleMetadata result = new CompatibleMetadata(segmentMetadata.get(ledgerId));
+            compatibleMetadata.put(ledgerId, result);
+            return result;
+        } else {
+            return null;
+        }
     }
 
     @Override
@@ -153,9 +165,6 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
      */
     @Override
     public IndexInputStream toStream() throws IOException {
-//        int indexEntryCount = this.indexEntries.size();
-//        byte[] ledgerMetadataByte = buildLedgerMetadataFormat(this.segmentMetadata);
-//        int segmentMetadataLength = ledgerMetadataByte.length;
 
         int indexBlockLength = 4 /* magic header */
                 + 4 /* index block length */
@@ -167,7 +176,7 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
             Long ledgerId = e.getKey();
             TreeMap<Long, OffloadIndexEntryImpl> ledgerIndexEntries = e.getValue();
             int indexEntryCount = ledgerIndexEntries.size();
-            byte[] ledgerMetadataByte = buildLedgerMetadataFormat(this.segmentMetadata.get(ledgerId));
+            byte[] ledgerMetadataByte = this.segmentMetadata.get(ledgerId).toByteArray();
             int segmentMetadataLength = ledgerMetadataByte.length;
             indexBlockLength += 8 /* ledger id length */
                     + 4 /* index entry count */
@@ -203,10 +212,8 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
         return new IndexInputStream(new ByteBufInputStream(out, true), indexBlockLength);
     }
 
-    private static LedgerMetadata parseLedgerMetadata(byte[] bytes) throws IOException {
-        LedgerMetadataFormat.Builder builder = LedgerMetadataFormat.newBuilder();
-        builder.mergeFrom(bytes);
-        return new OffloadIndexBlockImpl.InternalLedgerMetadata(builder.build());
+    private static LedgerInfo parseLedgerInfo(byte[] bytes) throws IOException {
+        return LedgerInfo.newBuilder().mergeFrom(bytes).build();
     }
 
     private StreamingOffloadIndexBlock fromStream(InputStream stream) throws IOException {
@@ -230,8 +237,8 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
                 log.error("Read ledgerMetadata from bytes failed");
                 throw new IOException("Read ledgerMetadata from bytes failed");
             }
-            final LedgerMetadata segmentMetadata = parseLedgerMetadata(metadataBytes);
-            this.segmentMetadata.put(ledgerId, segmentMetadata);
+            final LedgerInfo ledgerInfo = parseLedgerInfo(metadataBytes);
+            this.segmentMetadata.put(ledgerId, ledgerInfo);
             final TreeMap<Long, OffloadIndexEntryImpl> indexEntries = new TreeMap<>();
 
             for (int i = 0; i < indexEntryCount; i++) {
@@ -254,5 +261,120 @@ public class StreamingOffloadIndexBlockImpl implements StreamingOffloadIndexBloc
         recycle();
     }
 
+    @VisibleForTesting
+    static class CompatibleMetadata implements LedgerMetadata {
+        LedgerInfo ledgerInfo;
+
+        public CompatibleMetadata(LedgerInfo ledgerInfo) {
+            this.ledgerInfo = ledgerInfo;
+        }
+
+        @Override
+        public long getLedgerId() {
+            return ledgerInfo.getLedgerId();
+        }
+
+        @Override
+        public int getEnsembleSize() {
+            return 0;
+        }
+
+        @Override
+        public int getWriteQuorumSize() {
+            return 0;
+        }
+
+        @Override
+        public int getAckQuorumSize() {
+            return 0;
+        }
+
+        @Override
+        public long getLastEntryId() {
+            return ledgerInfo.getEntries() - 1;
+        }
+
+        @Override
+        public long getLength() {
+            return ledgerInfo.getSize();
+        }
+
+        @Override
+        public boolean hasPassword() {
+            return false;
+        }
+
+        @Override
+        public byte[] getPassword() {
+            return new byte[0];
+        }
+
+        @Override
+        public DigestType getDigestType() {
+            return null;
+        }
+
+        @Override
+        public long getCtime() {
+            return 0;
+        }
+
+        @Override
+        public boolean isClosed() {
+            return true;
+        }
+
+        @Override
+        public Map<String, byte[]> getCustomMetadata() {
+            return null;
+        }
+
+        @Override
+        public List<BookieId> getEnsembleAt(long entryId) {
+            return null;
+        }
+
+        @Override
+        public NavigableMap<Long, ? extends List<BookieId>> getAllEnsembles() {
+            return null;
+        }
+
+        @Override
+        public State getState() {
+            return null;
+        }
+
+        @Override
+        public String toSafeString() {
+            return null;
+        }
+
+        @Override
+        public int getMetadataFormatVersion() {
+            return 0;
+        }
+
+        @Override
+        public long getCToken() {
+            return 0;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            CompatibleMetadata that = (CompatibleMetadata) o;
+            return ledgerInfo.equals(that.ledgerInfo);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(ledgerInfo);
+        }
+    }
 }
 

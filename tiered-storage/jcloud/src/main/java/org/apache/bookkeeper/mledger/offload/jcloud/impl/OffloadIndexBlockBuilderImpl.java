@@ -33,13 +33,14 @@ import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlockBuilder;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 
 /**
  * Interface for builder of index block used for offload a ledger to long term storage.
  */
 public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder, StreamingOffloadIndexBlockBuilder {
 
-    private final Map<Long, LedgerMetadata> ledgerMetadataMap;
+    private final Map<Long, LedgerInfo> ledgerMetadataMap;
     private LedgerMetadata ledgerMetadata;
     private long dataObjectLength;
     private long dataHeaderLength;
@@ -74,7 +75,7 @@ public class OffloadIndexBlockBuilderImpl implements OffloadIndexBlockBuilder, S
     }
 
     @Override
-    public OffloadIndexBlockBuilderImpl addLedgerMeta(Long ledgerId, LedgerMetadata metadata) {
+    public OffloadIndexBlockBuilderImpl addLedgerMeta(Long ledgerId, LedgerInfo metadata) {
         this.ledgerMetadataMap.put(ledgerId, metadata);
         return this;
     }

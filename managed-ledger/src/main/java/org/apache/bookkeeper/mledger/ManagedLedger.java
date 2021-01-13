@@ -21,7 +21,6 @@ package org.apache.bookkeeper.mledger;
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -32,6 +31,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.intercept.ManagedLedgerInterceptor;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
 
 /**
@@ -595,5 +595,8 @@ public interface ManagedLedger {
      * */
     ManagedLedgerInterceptor getManagedLedgerInterceptor();
 
-    CompletableFuture<LedgerMetadata> getRawLedgerMetadata(long ledgerId);
+    /**
+     * Get basic ledger summary after the ledger is closed
+     */
+    CompletableFuture<LedgerInfo> getClosedLedgerInfo(long ledgerId) throws ManagedLedgerException;
 }

@@ -24,6 +24,7 @@ import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Strings;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -73,7 +74,6 @@ import org.apache.bookkeeper.client.BKException.Code;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.client.api.LedgerMetadata;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.Backoff;
 import org.apache.bookkeeper.common.util.JsonUtil;
@@ -1687,8 +1687,17 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public CompletableFuture<LedgerMetadata> getRawLedgerMetadata(long ledgerId) {
-        return getLedgerHandle(ledgerId).thenApply(org.apache.bookkeeper.client.api.Handle::getLedgerMetadata);
+    public CompletableFuture<LedgerInfo> getClosedLedgerInfo(long ledgerId) throws ManagedLedgerException {
+        final LedgerInfo ledgerInfo = ledgers.get(ledgerId);
+        if (ledgerInfo == null) {
+            throw new ManagedLedgerException(
+                    Strings.lenientFormat("ledger with id %s not found", ledgerId));
+        } else if (ledgerInfo.getSize() == 0 || ledgerInfo.getEntries() == 0) {
+            throw new ManagedLedgerException(
+                    Strings.lenientFormat("ledger with id %s has not closed yet", ledgerId));
+        }
+
+        return CompletableFuture.completedFuture(ledgerInfo);
     }
 
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {

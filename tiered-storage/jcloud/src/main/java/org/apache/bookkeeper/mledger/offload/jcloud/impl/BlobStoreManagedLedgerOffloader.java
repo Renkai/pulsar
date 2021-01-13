@@ -41,6 +41,7 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.OffloadNotConsecutiveException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -344,9 +345,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         payloadStream = new BufferedOffloadStream(streamingBlockSize, offloadBuffer, segmentInfo,
                 blockLedgerId, blockEntryId, bufferLength);
         try {
-            streamingIndexBuilder.addLedgerMeta(blockLedgerId, ml.getRawLedgerMetadata(blockLedgerId).get());
+            streamingIndexBuilder.addLedgerMeta(blockLedgerId, ml.getClosedLedgerInfo(blockLedgerId).get());
             streamingIndexBuilder.withDataBlockHeaderLength(StreamingDataBlockHeaderImpl.getDataStartOffset());
-        } catch (InterruptedException | ExecutionException e) {
+        } catch (InterruptedException | ExecutionException | ManagedLedgerException e) {
             offloadResult.completeExceptionally(e);
             return;
         }
