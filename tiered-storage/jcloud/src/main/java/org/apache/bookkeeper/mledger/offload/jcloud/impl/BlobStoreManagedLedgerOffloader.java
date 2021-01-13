@@ -420,7 +420,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         this.segmentInfo.closeSegment(lastOfferedPosition.getLedgerId(), lastOfferedPosition.getEntryId());
     }
 
-    private boolean naiveCheckConsecutive(PositionImpl lastOfferedPosition, PositionImpl offeringPosition) {
+    private static boolean naiveCheckConsecutive(PositionImpl lastOfferedPosition, PositionImpl offeringPosition) {
         if (offeringPosition.getLedgerId() == lastOfferedPosition.getLedgerId()
                 && offeringPosition.getEntryId() == lastOfferedPosition.getEntryId() + 1) {
             return true;
