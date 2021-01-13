@@ -596,7 +596,8 @@ public interface ManagedLedger {
     ManagedLedgerInterceptor getManagedLedgerInterceptor();
 
     /**
-     * Get basic ledger summary after the ledger is closed
+     * Get basic ledger summary after the ledger is closed.
+     * will got exception if corresponding ledger was not closed when the method called.
      */
     CompletableFuture<LedgerInfo> getClosedLedgerInfo(long ledgerId) throws ManagedLedgerException;
 }
