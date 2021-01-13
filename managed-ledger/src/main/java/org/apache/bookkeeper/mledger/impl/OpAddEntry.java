@@ -19,16 +19,13 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
-
+import io.netty.util.ReferenceCountUtil;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
-import io.netty.util.ReferenceCountUtil;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.BKException;
@@ -47,6 +44,11 @@ import org.slf4j.LoggerFactory;
 public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
     protected ManagedLedgerImpl ml;
     LedgerHandle ledger;
+
+    public long getEntryId() {
+        return entryId;
+    }
+
     private long entryId;
     private int numberOfMessages;
 
@@ -61,8 +63,22 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     private boolean closeWhenDone;
     private long startTime;
     volatile long lastInitTime;
+
+    public ByteBuf getData() {
+        return data;
+    }
+
     @SuppressWarnings("unused")
     ByteBuf data;
+
+    public int getDataLength() {
+        return dataLength;
+    }
+
+    public long getLedgerId() {
+        return ledger.getId();
+    }
+
     private int dataLength;
 
     private static final AtomicReferenceFieldUpdater<OpAddEntry, OpAddEntry.State> STATE_UPDATER = AtomicReferenceFieldUpdater
@@ -155,7 +171,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         }
         checkArgument(ledger.getId() == lh.getId(), "ledgerId %s doesn't match with acked ledgerId %s", ledger.getId(),
                 lh.getId());
-        
+
         if (!checkAndCompleteOp(ctx)) {
             // means callback might have been completed by different thread (timeout task thread).. so do nothing
             return;
@@ -199,7 +215,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         PositionImpl lastEntry = PositionImpl.get(ledger.getId(), entryId);
         ManagedLedgerImpl.ENTRIES_ADDED_COUNTER_UPDATER.incrementAndGet(ml);
         ml.lastConfirmedEntry = lastEntry;
-
+        ml.addToOffload(this);
         if (closeWhenDone) {
             log.info("[{}] Closing ledger {} for being full", ml.getName(), ledger.getId());
             ledger.asyncClose(this, ctx);
@@ -243,7 +259,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     /**
      * Checks if add-operation is completed
-     * 
+     *
      * @return true if task is not already completed else returns false.
      */
     private boolean checkAndCompleteOp(Object ctx) {
@@ -264,7 +280,7 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
 
     /**
      * It handles add failure on the given ledger. it can be triggered when add-entry fails or times out.
-     * 
+     *
      * @param ledger
      */
     void handleAddFailure(final LedgerHandle ledger) {
@@ -288,10 +304,6 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         return state;
     }
 
-    public ByteBuf getData() {
-        return data;
-    }
-
     public int getNumberOfMessages() {
         return numberOfMessages;
     }
@@ -303,7 +315,6 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
     public void setData(ByteBuf data) {
         this.data = data;
     }
-
     private final Handle<OpAddEntry> recyclerHandle;
 
     private OpAddEntry(Handle<OpAddEntry> recyclerHandle) {
@@ -331,6 +342,10 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         startTime = -1;
         lastInitTime = -1;
         recyclerHandle.recycle(this);
+    }
+
+    public PositionImpl getPosition() {
+        return PositionImpl.get(getLedgerId(), getEntryId());
     }
 
     private static final Logger log = LoggerFactory.getLogger(OpAddEntry.class);
