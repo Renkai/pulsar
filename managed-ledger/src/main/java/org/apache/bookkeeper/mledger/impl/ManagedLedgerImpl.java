@@ -129,6 +129,7 @@ import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.common.api.proto.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadMethod;
 import org.apache.pulsar.common.policies.data.OffloadPolicies.OffloadedReadPriority;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.metadata.api.Stat;
@@ -136,7 +137,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
-    //TODO add code to support switch between streaming and traditional offloading
+    //TODO add code to support switch between streaming and ledger-based offloading
     //TODO ensure we create exactly one offloader for one segment to write in streaming
     //TODO implement start offload after managed ledger created
     //TODO add integration test for streaming offload
@@ -409,7 +410,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * Should be called after `ledgers` were initialized.
      */
     synchronized void initializeStreamingOffloader() {
-        if (!isStreamOffload()) {
+        if (getOffloadMethod() != OffloadMethod.STREAMING_BASED) {
             log.info("Streaming offload not enabled for managed ledger: {}", name);
             return;
         } else {
@@ -1896,7 +1897,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         trimConsumedLedgersInBackground();
 
-        if (!isStreamOffload()) {
+        if (getOffloadMethod() != OffloadMethod.STREAMING_BASED) {
             maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
         }
 
@@ -3114,9 +3115,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    public boolean isStreamOffload() {
-        //TODO: read from config after offloader implemented
-        return false;
+    public OffloadMethod getOffloadMethod() {
+        return config.getLedgerOffloader().getOffloadPolicies().getOffloadMethod();
     }
 
     interface LedgerInfoTransformation {

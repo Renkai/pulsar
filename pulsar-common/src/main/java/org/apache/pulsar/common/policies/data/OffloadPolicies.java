@@ -94,6 +94,56 @@ public class OffloadPolicies implements Serializable {
         }
     }
 
+    @InterfaceAudience.Public
+    @InterfaceStability.Stable
+    public enum OffloadMethod {
+        /**
+         * Ledger based offload, one offload segment corresponding to a ledger
+         */
+        LEDGER_BASED("ledger-based"),
+        /**
+         * Streaming offload, offload segments are divided by time or size
+         */
+        STREAMING_BASED("streaming-based"),
+        /**
+         * Disable offload
+         */
+        NONE("none");
+
+        private final String strValue;
+
+        OffloadMethod(String strValue) {
+            this.strValue = strValue;
+        }
+
+        public boolean equalsName(String otherName) {
+            return strValue.equals(otherName);
+        }
+
+        @Override
+        public String toString() {
+            return strValue;
+        }
+
+        public static OffloadMethod fromString(String str) {
+            for (OffloadMethod value : OffloadMethod.values()) {
+                if (value.strValue.equals(str)) {
+                    return value;
+                }
+            }
+
+            throw new IllegalArgumentException("--offloadMethod parameter must be one of "
+                    + Arrays.stream(OffloadMethod.values())
+                    .map(OffloadMethod::toString)
+                    .collect(Collectors.joining(","))
+                    + " but got: " + str);
+        }
+
+        public String getStrValue() {
+            return strValue;
+        }
+    }
+
     private final static long serialVersionUID = 0L;
 
     private final static List<Field> CONFIGURATION_FIELDS;
@@ -123,6 +173,7 @@ public class OffloadPolicies implements Serializable {
             "managedLedgerOffloadAutoTriggerSizeThresholdBytes";
     public final static String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
     public final static OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY = OffloadedReadPriority.TIERED_STORAGE_FIRST;
+    public final static OffloadMethod DEFAULT_OFFLOAD_METHOD = OffloadMethod.LEDGER_BASED;
 
     // common config
     @Configuration
@@ -139,6 +190,8 @@ public class OffloadPolicies implements Serializable {
     private Long managedLedgerOffloadDeletionLagInMillis = DEFAULT_OFFLOAD_DELETION_LAG_IN_MILLIS;
     @Configuration
     private OffloadedReadPriority managedLedgerOffloadedReadPriority = DEFAULT_OFFLOADED_READ_PRIORITY;
+    @Configuration
+    private OffloadMethod offloadMethod = DEFAULT_OFFLOAD_METHOD; //TODO read from config file
 
     // s3 config, set by service configuration or cli
     @Configuration
