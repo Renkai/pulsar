@@ -18,7 +18,6 @@
  */
 package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 
-import static org.apache.bookkeeper.mledger.ManagedLedgerException.OffloadSegmentClosedException;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -40,9 +39,9 @@ import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.LedgerOffloader.OffloadHandle.OfferEntryResult;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.OffloadNotConsecutiveException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream;
@@ -307,8 +306,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             }
 
             @Override
-            public boolean offerEntry(EntryImpl entry) throws OffloadSegmentClosedException,
-                    OffloadNotConsecutiveException {
+            public OfferEntryResult offerEntry(Entry entry) {
                 return BlobStoreManagedLedgerOffloader.this.offerEntry(entry);
             }
 
@@ -393,26 +391,33 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         return this.offloadResult;
     }
 
-    private synchronized boolean offerEntry(EntryImpl entry) throws OffloadSegmentClosedException,
-            OffloadNotConsecutiveException {
+    private synchronized OfferEntryResult offerEntry(Entry entry) {
+
         if (segmentInfo.isClosed()) {
-            throw new OffloadSegmentClosedException("Segment already closed " + segmentInfo);
+            log.debug("Segment already closed {}", segmentInfo);
+            return OfferEntryResult.FAIL_SEGMENT_CLOSED;
+        } else if (maxBufferLength >= bufferLength.get() + entry.getLength()
+                //if single message size larger than full buffer size, then ok to offer when buffer is empty
+                && !(entry.getLength() > maxBufferLength && offloadBuffer.isEmpty())) {
+            return OfferEntryResult.FAIL_BUFFER_FULL;
         } else {
-            if (!naiveCheckConsecutive(lastOfferedPosition, entry.getPosition())) {
-                throw new OffloadNotConsecutiveException(
-                        Strings.lenientFormat("position %s and %s are not consecutive", lastOfferedPosition,
-                                entry.getPosition()));
+            if (!naiveCheckConsecutive(lastOfferedPosition,
+                    PositionImpl.get(entry.getLedgerId(), entry.getEntryId()))) {
+                log.error("position {} and {} are not consecutive", lastOfferedPosition,
+                        entry.getPosition());
+                return OfferEntryResult.FAIL_NOT_CONSECUTIVE;
             }
-            entry.retain();
-            offloadBuffer.add(entry);
-            bufferLength.getAndAdd(entry.getLength());
-            segmentLength.getAndAdd(entry.getLength());
-            lastOfferedPosition = entry.getPosition();
+            final EntryImpl entryImpl = EntryImpl
+                    .create(entry.getLedgerId(), entry.getEntryId(), entry.getDataBuffer());
+            offloadBuffer.add(entryImpl);
+            bufferLength.getAndAdd(entryImpl.getLength());
+            segmentLength.getAndAdd(entryImpl.getLength());
+            lastOfferedPosition = entryImpl.getPosition();
             if (segmentLength.get() >= maxSegmentLength
                     && System.currentTimeMillis() - segmentBeginTimeMillis >= minSegmentCloseTimeMillis) {
                 closeSegment();
             }
-            return true;
+            return OfferEntryResult.SUCCESS;
         }
     }
 
@@ -438,7 +443,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     }
 
     private boolean canOffer(long size) {
-        if (maxBufferLength >= bufferLength.get() + size) {
+        if (segmentInfo.isClosed()) {
+            return false;
+        } else if (maxBufferLength >= bufferLength.get() + size) {
             return true;
         } else {
             //if single message size larger than full buffer size, then ok to offer

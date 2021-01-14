@@ -95,6 +95,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.UpdatePropertiesCallback;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloader.OffloadHandle;
+import org.apache.bookkeeper.mledger.LedgerOffloader.OffloadHandle.OfferEntryResult;
 import org.apache.bookkeeper.mledger.LedgerOffloader.SegmentInfoImpl;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -111,8 +112,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTermina
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetadataNotFoundException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.OffloadNotConsecutiveException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.OffloadSegmentClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.Position;
@@ -385,10 +384,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     }
                     mbean.startDataLedgerOpenOp();
                     bookKeeper.asyncOpenLedger(id, digestType, config.getPassword(), opencb, null);
-                    initializeStreamingOffloader();
                 } else {
                     initializeBookKeeper(callback);
                 }
+                initializeStreamingOffloader();
             }
 
             @Override
@@ -421,7 +420,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.offloadSegments = Queues.newConcurrentLinkedQueue();
 
         initializeSegments();
-        //TODO delete wrong write blobs
 
         if (offloadSegments.isEmpty()) {
             log.error("Streaming offloading began but there is no segments to offload, should not happen.");
@@ -436,32 +434,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         for (Map.Entry<Long, LedgerInfo> idInfo : ledgers.entrySet()) {
 
             final Long ledgerId = idInfo.getKey();
-            final LedgerInfo ledgerInfo = idInfo.getValue();
+            LedgerInfo ledgerInfo = idInfo.getValue();
             String driverName = OffloadUtils.getOffloadDriverName(ledgerInfo,
                     config.getLedgerOffloader().getOffloadDriverName());
             Map<String, String> driverMetadata = OffloadUtils.getOffloadDriverMetadata(ledgerInfo,
                     config.getLedgerOffloader().getOffloadDriverMetadata());
 
             if (!ledgerInfo.hasOffloadContext()) {
-                // Initialize context
-                UUID uuid = UUID.randomUUID();
-                //TODO maybe better way to update ledger info exists, find some one more familiar with java protobuf
-                // to review
-
-                final OffloadSegment.Builder segment = OffloadSegment.newBuilder()
-                        .setUidLsb(uuid.getLeastSignificantBits())
-                        .setUidMsb(uuid.getMostSignificantBits())
-                        .setAssignedTimestamp(System.currentTimeMillis())
-                        .setComplete(false);
-                OffloadUtils.setOffloadDriverMetadata(segment, driverName, driverMetadata);
-                final OffloadContext context = OffloadContext.newBuilder().addOffloadSegment(segment)
+                final OffloadContext context = OffloadContext.newBuilder()
                         .setComplete(false)
                         .build();
-                final LedgerInfo newLedgerInfo = ledgerInfo.toBuilder().setOffloadContext(context).build();
-                idInfo.setValue(newLedgerInfo);
-                offloadSegments.add(new SegmentInfoImpl(uuid, ledgerId, 0, driverName, driverMetadata));
-                break;
-            } else if (!ledgerInfo.getOffloadContext().getComplete()) { //TODO use getComplete in the segment instead
+                ledgerInfo = ledgerInfo.toBuilder().setOffloadContext(context).build();
+            }
+
+            if (!isStreamingOffloadCompleted(ledgerInfo)) {
                 List<OffloadSegment> newSegments = Lists.newArrayList();
                 // Continue from incomplete context
                 long beginEntry = 0;
@@ -476,6 +462,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         }
                     }
                 }
+
                 UUID uuid = UUID.randomUUID();
                 final OffloadSegment.Builder segment = OffloadSegment.newBuilder()
                         .setUidLsb(uuid.getLeastSignificantBits())
@@ -494,6 +481,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
+    boolean isStreamingOffloadCompleted(LedgerInfo ledgerInfo) {
+        if (!ledgerInfo.hasEntries()) {
+            //ledger is not closed
+            return false;
+        }
+        if (!ledgerInfo.hasOffloadContext()) {
+            return false;
+        }
+        final List<OffloadSegment> offloadSegmentList = ledgerInfo.getOffloadContext().getOffloadSegmentList();
+        if (offloadSegmentList.isEmpty()) {
+            return false;
+        }
+        final OffloadSegment lastSegment = offloadSegmentList.get(offloadSegmentList.size() - 1);
+
+        return lastSegment.getComplete() && lastSegment.getEndEntryId() == ledgerInfo.getEntries() - 1;
+    }
+
     private synchronized void startOffload() {
         //TODO add mutex to verify only one offload
 
@@ -510,7 +514,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (segmentInfo == null) {
                         throw new RuntimeException("An empty segment list, should not happen");
                     }
-                    updatedMetaForOffloaded(segmentInfo, result);
+                    final LedgerOffloader.OffloadResult expectedResult = segmentInfo.result();
+
+                    if (expectedResult.equals(result)) {
+                        throw new RuntimeException(
+                                Strings.lenientFormat("expect result %s got %s, should not happen", expectedResult,
+                                        result));
+                    }
+
+                    updatedMetaForOffloaded(segmentInfo);
                     initializeSegments();
                     //TODO use new offloader after segment closed
 
@@ -533,17 +545,42 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         public long beginEntryId;
         public long endEntryId;
         public long beginTs;
+
+        public LedgerInSegment(long ledgerId, long beginEntryId, long endEntryId, long beginTs) {
+            this.ledgerId = ledgerId;
+            this.beginEntryId = beginEntryId;
+            this.endEntryId = endEntryId;
+            this.beginTs = beginTs;
+        }
     }
 
-    private List<LedgerInSegment> getLedgersInseg(SegmentInfoImpl segmentInfo) {
-        //TODO implement
-        return null;
+    private List<LedgerInSegment> getLedgersInSegment(SegmentInfoImpl segmentInfo) {
+        final LedgerOffloader.OffloadResult offloadResult = segmentInfo.result();
+        if (offloadResult.beginLedger == offloadResult.endLedger) {
+            return Lists.newArrayList(
+                    new LedgerInSegment(offloadResult.beginLedger, offloadResult.beginEntry, offloadResult.endEntry,
+                            segmentInfo.beginTimestamp));
+        }
+
+        final List<LedgerInSegment> result = Lists.newLinkedList();
+        result.add(new LedgerInSegment(offloadResult.beginLedger, offloadResult.beginEntry,
+                ledgers.get(offloadResult.beginLedger).getEntries() - 1, segmentInfo.beginTimestamp));
+        for (long i = offloadResult.beginLedger + 1; i < offloadResult.endLedger; i++) {
+            final LedgerInfo ledgerI = ledgers.get(i);
+            if (ledgerI != null) {
+                result.add(new LedgerInSegment(i, 0, ledgerI.getEntries() - 1, segmentInfo.beginTimestamp));
+            } else {
+                log.info("ledger {} does not exists in ledgers, maybe because it is empty", i);
+            }
+        }
+        result.add(new LedgerInSegment(offloadResult.endLedger, 0, offloadResult.endEntry, segmentInfo.beginTimestamp));
+
+        return result;
     }
 
-    private void updatedMetaForOffloaded(SegmentInfoImpl segmentInfo,
-                                         LedgerOffloader.OffloadResult result) {
+    private void updatedMetaForOffloaded(SegmentInfoImpl segmentInfo) {
         final HashMap<Long, LedgerInfoTransformation> ledgerForTrans = new HashMap<>();
-        for (LedgerInSegment ledgerInSeg : getLedgersInseg(segmentInfo)) {
+        for (LedgerInSegment ledgerInSeg : getLedgersInSegment(segmentInfo)) {
             ledgerForTrans.put(ledgerInSeg.ledgerId, (ledgerInfo) -> {
 
                 final LedgerInfo.Builder newBuilder = ledgerInfo.toBuilder();
@@ -604,10 +641,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         newBuilder.getOffloadContextBuilder()
                                 .addOffloadSegment(newSegmentMeta);
                     }
-                }
-                //Ledger offload finished, set complete to true
-                if (ledgerInfo.hasSize() && ledgerInfo.getSize() - 1 == ledgerInSeg.endEntryId) {
-                    newBuilder.getOffloadContextBuilder().setComplete(true);
                 }
                 return newBuilder.build();
             });
@@ -1015,38 +1048,45 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      *
      * @param addOperation
      */
-    final static private String ENTRY_FILL_LOOP = "entry_fill_loop";
-
     protected synchronized void addToOffload(OpAddEntry addOperation) {
         if (currentOffloadHandle == null) {
             return;
         }
         final PositionImpl positionNextToOffered = getNextValidPosition(currentOffloadHandle.lastOffered());
+
         if (positionNextToOffered
-                .equals(addOperation.getPosition())
-                && currentOffloadHandle
-                .canOffer(addOperation.getDataLength())) {
+                .equals(addOperation.getPosition())) {
             final EntryImpl entry = EntryImpl
                     .create(PositionImpl.get(addOperation.ledger.getId(), addOperation.getEntryId()),
                             addOperation.getData());
-            try {
-                final boolean used = currentOffloadHandle.offerEntry(entry);
-            } catch (OffloadSegmentClosedException | OffloadNotConsecutiveException e) {
-                e.printStackTrace();
-                //TODO deal with closed
-            }
-            entry.release();
 
-        } else if (offloadEntryFillTask == null || offloadEntryFillTask.isDone()) {
-            offloadEntryFillTask = new CompletableFuture<>();
-            executor.executeOrdered(ENTRY_FILL_LOOP,
-                    safeRun(() -> entryFillLoop(currentOffloadHandle, positionNextToOffered,
-                            PositionImpl.get(addOperation.getLedgerId(), addOperation.getEntryId()),
-                            offloadEntryFillTask)));
+            OfferEntryResult offerEntryResult = currentOffloadHandle.offerEntry(entry);
+            entry.release();
+            switch (offerEntryResult) {
+                case SUCCESS:
+                    //happy case
+                    return;
+                case FAIL_SEGMENT_CLOSED:
+                    log.debug("segment closed");
+                    return;
+                case FAIL_NOT_CONSECUTIVE:
+                    log.error("entry not consecutive, should not happen");
+                    return;
+                case FAIL_BUFFER_FULL:
+                    log.debug("buffer full");
+                    break;
+            }
         }
+
+        if (offloadEntryFillTask == null || offloadEntryFillTask.isDone()) {
+            offloadEntryFillTask = new CompletableFuture<>();
+            scheduledExecutor.schedule(safeRun(() -> entryFillLoop(currentOffloadHandle, positionNextToOffered,
+                    PositionImpl.get(addOperation.getLedgerId(), addOperation.getEntryId()),
+                    offloadEntryFillTask)), 100, TimeUnit.MILLISECONDS);
+        } // else fill when next entry added
     }
 
-    private void entryFillLoop(OffloadHandle OffloadHandle,
+    private void entryFillLoop(OffloadHandle offloadHandle,
                                PositionImpl beginPosition, PositionImpl endPosition,
                                CompletableFuture<Void> offloadEntryFillTask) {
         asyncReadEntry(beginPosition, new ReadEntryCallback() {
@@ -1061,28 +1101,28 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             @Override
             public void readEntryComplete(Entry entry, Object ctx) {
-                if (!OffloadHandle.canOffer(entry.getLength())) {
-                    delayExecute(OffloadHandle, beginPosition, endPosition, offloadEntryFillTask);
-                } else {
-                    //TODO maybe we can add retain to interface Entry to avoid  copy data
-                    final EntryImpl entryImpl = EntryImpl
-                            .create(entry.getLedgerId(), entry.getEntryId(), entry.getDataAndRelease());
-                    try {
-                        OffloadHandle.offerEntry(entryImpl);
-                    } catch (OffloadSegmentClosedException | OffloadNotConsecutiveException e) {
-                        e.printStackTrace();
-                        //TODO deal with
-                    }
-                    entryImpl.release();
+                final OfferEntryResult offerEntryResult = offloadHandle.offerEntry(entry);
+                entry.release();
 
-                    //TODO deal with offer failed
-
-                    if (beginPosition == endPosition) {
-                        offloadEntryFillTask.complete(null);
-                        final PositionImpl nextPos = getNextValidPosition(beginPosition);
-                        entryFillLoop(OffloadHandle, nextPos, endPosition,
-                                offloadEntryFillTask);
-                    }
+                switch (offerEntryResult) {
+                    case FAIL_BUFFER_FULL:
+                        delayExecute(offloadHandle, beginPosition, endPosition, offloadEntryFillTask);
+                        break;
+                    case FAIL_SEGMENT_CLOSED:
+                        log.debug("segment closed");
+                        break;
+                    case FAIL_NOT_CONSECUTIVE:
+                        log.error("entries not consecutive, should not happen");
+                        break;
+                    case SUCCESS:
+                        if (beginPosition == endPosition) {
+                            offloadEntryFillTask.complete(null);
+                        } else {
+                            final PositionImpl nextPos = getNextValidPosition(beginPosition);
+                            entryFillLoop(offloadHandle, nextPos, endPosition,
+                                    offloadEntryFillTask);
+                        }
+                        break;
                 }
             }
 
