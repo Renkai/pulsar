@@ -267,5 +267,12 @@ public interface LedgerOffloader {
      * Close the resources if necessary
      */
     void close();
+
+    /**
+     * Create a new instance with the same configuration
+     */
+    default LedgerOffloader fork() {
+        throw new UnsupportedOperationException();
+    }
 }
 

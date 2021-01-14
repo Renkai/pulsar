@@ -107,6 +107,11 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         return new BlobStoreManagedLedgerOffloader(config, scheduler, userMetadata);
     }
 
+    @Override
+    public BlobStoreManagedLedgerOffloader fork() {
+        return new BlobStoreManagedLedgerOffloader(config, scheduler, userMetadata);
+    }
+
     BlobStoreManagedLedgerOffloader(TieredStorageConfiguration config, OrderedScheduler scheduler,
                                     Map<String, String> userMetadata) {
 

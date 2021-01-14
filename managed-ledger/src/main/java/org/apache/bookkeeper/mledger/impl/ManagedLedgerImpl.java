@@ -415,7 +415,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         } else {
             log.info("Streaming offload enabled for managed ledger: {}", name);
         }
-        offloader = config.getLedgerOffloader();
+        offloader = config.getLedgerOffloader().fork();
 
         this.offloadSegments = Queues.newConcurrentLinkedQueue();
 
@@ -524,10 +524,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                     updatedMetaForOffloaded(segmentInfo);
                     initializeSegments();
-                    //TODO use new offloader after segment closed
+                    //use new offloader after segment closed
+                    offloader = config.getLedgerOffloader().fork();
 
                     if (offloadSegments.isEmpty()) {
-                        log.error("Streaming offloading began but there is no segments to offload, should not happen.");
                         throw new RuntimeException(
                                 "Streaming offloading began but there is no segments to offload, should not happen.");
                     }
@@ -610,8 +610,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         final OffloadSegment secondLastOffloadSegment = currentSegments
                                 .get(currentSegments.size() - 2);
                         if (secondLastOffloadSegment.getEndEntryId() != ledgerInSeg.beginEntryId - 1) {
-                            log.error("the entries are not constructive");
-                            //TODO reconstruct a segment and start streaming offload
+                            throw new OffloadConflict("the entries are not constructive");
                         }
                         final OffloadSegment.Builder newLast = lastOffloadSegment.toBuilder()
                                 .setEndEntryId(ledgerInSeg.endEntryId)
@@ -624,8 +623,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 .addAllOffloadSegment(currentSegments);
                     } else {
                         if (lastOffloadSegment.getEndEntryId() != ledgerInSeg.beginEntryId - 1) {
-                            log.error("the entries are not constructive");
-                            //TODO reconstruct a segment and start streaming offload
+                            throw new OffloadConflict("the entries are not constructive");
                         }
 
                         //create new segment
