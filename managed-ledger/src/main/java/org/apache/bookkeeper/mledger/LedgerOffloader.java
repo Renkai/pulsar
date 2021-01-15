@@ -22,7 +22,6 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import lombok.ToString;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -46,43 +45,6 @@ public interface LedgerOffloader {
         OffloadResult result();
     }
 
-    @ToString
-    class SegmentInfoImpl implements SegmentInfo {
-        public SegmentInfoImpl(UUID uuid, long beginLedger, long beginEntry, String driverName,
-                               Map<String, String> driverMetadata) {
-            this.uuid = uuid;
-            this.beginLedger = beginLedger;
-            this.beginEntry = beginEntry;
-            this.driverName = driverName;
-            this.driverMetadata = driverMetadata;
-        }
-
-
-        public final UUID uuid;
-        public final long beginLedger;
-        public final long beginEntry;
-        public final String driverName;
-        volatile private long endLedger;
-        volatile private long endEntry;
-        volatile boolean closed = false;
-        public final Map<String, String> driverMetadata;
-
-        public boolean isClosed() {
-            return closed;
-        }
-
-        public void closeSegment(long endLedger, long endEntry) {
-            this.endLedger = endLedger;
-            this.endEntry = endEntry;
-            this.closed = true;
-        }
-
-        public OffloadResult result() {
-            return new OffloadResult(beginLedger, beginEntry, endLedger, endEntry);
-        }
-    }
-
-
     class OffloadResult {
         public final long beginLedger;
         public final long beginEntry;
@@ -99,7 +61,7 @@ public interface LedgerOffloader {
 
     /**
      * Used to store driver info, buffer entries, mark progress, etc.
-     * Create one per second.
+     * Create one per segment.
      */
     interface OffloadHandle {
 
@@ -159,7 +121,7 @@ public interface LedgerOffloader {
      * alongside the ledger data.
      *
      * When the returned future completes, the ledger has been persisted to the
-     * loadterm storage, so it is safe to delete the original copy in bookkeeper.
+     * longterm storage, so it is safe to delete the original copy in bookkeeper.
      *
      * The uid is used to identify an attempt to offload. The implementation should
      * use this to deterministically generate a unique name for the offloaded object.
@@ -189,7 +151,7 @@ public interface LedgerOffloader {
      *
      * When the returned OffloaderHandle.getOffloadResultAsync completes, the corresponding
      * ledgers has been persisted to the
-     * loadterm storage, so it is safe to delete the original copy in bookkeeper.
+     * longterm storage, so it is safe to delete the original copy in bookkeeper.
      *
      * The uid is used to identify an attempt to offload. The implementation should
      * use this to deterministically generate a unique name for the offloaded object.

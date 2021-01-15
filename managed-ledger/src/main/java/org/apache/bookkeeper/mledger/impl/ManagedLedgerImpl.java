@@ -1687,17 +1687,20 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public CompletableFuture<LedgerInfo> getClosedLedgerInfo(long ledgerId) throws ManagedLedgerException {
+    public CompletableFuture<LedgerInfo> getClosedLedgerInfo(long ledgerId) {
+        CompletableFuture<LedgerInfo> result = new CompletableFuture<>();
         final LedgerInfo ledgerInfo = ledgers.get(ledgerId);
         if (ledgerInfo == null) {
-            throw new ManagedLedgerException(
+            final ManagedLedgerException exception = new ManagedLedgerException(
                     Strings.lenientFormat("ledger with id %s not found", ledgerId));
+            result.completeExceptionally(exception);
         } else if (ledgerInfo.getSize() == 0 || ledgerInfo.getEntries() == 0) {
-            throw new ManagedLedgerException(
+            final ManagedLedgerException exception = new ManagedLedgerException(
                     Strings.lenientFormat("ledger with id %s has not closed yet", ledgerId));
+            result.completeExceptionally(exception);
         }
-
-        return CompletableFuture.completedFuture(ledgerInfo);
+        result.complete(ledgerInfo);
+        return result;
     }
 
     CompletableFuture<ReadHandle> getLedgerHandle(long ledgerId) {

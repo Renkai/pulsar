@@ -35,8 +35,8 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.bookkeeper.mledger.impl.SegmentInfoImpl;
 import org.junit.Test;
 import org.testng.Assert;
 
@@ -47,7 +47,7 @@ public class BufferedOffloadStreamTest {
         int blockSize = StreamingDataBlockHeaderImpl.getDataStartOffset();
         ConcurrentLinkedQueue<Entry> entryBuffer = new ConcurrentLinkedQueue<>();
         final UUID uuid = UUID.randomUUID();
-        LedgerOffloader.SegmentInfoImpl segmentInfo = new LedgerOffloader.SegmentInfoImpl(uuid, 0, 0, "",
+        SegmentInfoImpl segmentInfo = new SegmentInfoImpl(uuid, 0, 0, "",
                 new HashMap<>());
         AtomicLong bufferLength = new AtomicLong();
         final int entryCount = 10;
@@ -126,7 +126,7 @@ public class BufferedOffloadStreamTest {
         int paddingLen = 10;
         ConcurrentLinkedQueue<Entry> entryBuffer = new ConcurrentLinkedQueue<>();
         final UUID uuid = UUID.randomUUID();
-        LedgerOffloader.SegmentInfoImpl segmentInfo = new LedgerOffloader.SegmentInfoImpl(uuid, 0, 0, "",
+        SegmentInfoImpl segmentInfo = new SegmentInfoImpl(uuid, 0, 0, "",
                 new HashMap<>());
         AtomicLong bufferLength = new AtomicLong();
         final int entryCount = 10;
