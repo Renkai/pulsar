@@ -41,13 +41,13 @@ import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.OffloadNotConsecutiveException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.impl.SegmentInfoImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock.IndexInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockBuilder;
 import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlockBuilder;
@@ -237,7 +237,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
             // upload index block
             try (OffloadIndexBlock index = indexBuilder.withDataObjectLength(dataObjectLength).build();
-                 OffloadIndexBlock.IndexInputStream indexStream = index.toStream()) {
+                 IndexInputStream indexStream = index.toStream()) {
                 // write the index block
                 BlobBuilder blobBuilder = writeBlobStore.blobBuilder(indexBlockKey);
                 DataBlockUtils.addVersionInfo(blobBuilder, userMetadata);
@@ -246,8 +246,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 indexPayload.getContentMetadata().setContentType("application/octet-stream");
 
                 Blob blob = blobBuilder
-                    .payload(indexPayload)
-                    .contentLength((long) indexStream.getStreamSize())
+                        .payload(indexPayload)
+                        .contentLength((long) indexStream.getStreamSize())
                     .build();
 
                 writeBlobStore.putBlob(config.getBucket(), blob);
@@ -348,7 +348,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         try {
             streamingIndexBuilder.addLedgerMeta(blockLedgerId, ml.getClosedLedgerInfo(blockLedgerId).get());
             streamingIndexBuilder.withDataBlockHeaderLength(StreamingDataBlockHeaderImpl.getDataStartOffset());
-        } catch (InterruptedException | ExecutionException | ManagedLedgerException e) {
+        } catch (InterruptedException | ExecutionException e) {
             offloadResult.completeExceptionally(e);
             return;
         }
@@ -366,7 +366,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 blobStore.completeMultipartUpload(streamingMpu, streamingParts);
                 streamingIndexBuilder.withDataObjectLength(dataObjectLength + streamingBlockSize);
                 final StreamingOffloadIndexBlock index = streamingIndexBuilder.buildStreaming();
-                final StreamingOffloadIndexBlock.IndexInputStream indexStream = index.toStream();
+                final IndexInputStream indexStream = index.toStream();
                 final BlobBuilder indexBlobBuilder = blobStore.blobBuilder(streamingDataIndexKey);
                 DataBlockUtils.addVersionInfo(indexBlobBuilder, userMetadata);
                 final InputStreamPayload indexPayLoad = Payloads.newInputStreamPayload(indexStream);
