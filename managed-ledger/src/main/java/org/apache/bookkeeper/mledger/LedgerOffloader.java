@@ -25,8 +25,6 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.OffloadNotConsecutiveException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.OffloadSegmentClosedException;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
@@ -64,6 +62,12 @@ public interface LedgerOffloader {
      * Create one per segment.
      */
     interface OffloadHandle {
+        enum OfferEntryResult {
+            SUCCESS,
+            FAIL_BUFFER_FULL,
+            FAIL_SEGMENT_CLOSED,
+            FAIL_NOT_CONSECUTIVE
+        }
 
         /**
          * return true when both buffer have enough size and ledger/entry id is next to the current one.
@@ -82,15 +86,26 @@ public interface LedgerOffloader {
             return CompletableFuture.completedFuture(lastOffered());
         }
 
-        boolean offerEntry(EntryImpl entry) throws OffloadSegmentClosedException,
-                OffloadNotConsecutiveException;
+        /**
+         * The caller should manually release entry no matter what the offer result is.
+         */
+        OfferEntryResult offerEntry(Entry entry);
 
-        default CompletableFuture<Boolean> asyncOfferEntry(EntryImpl entry) throws OffloadSegmentClosedException,
-                OffloadNotConsecutiveException {
+        default CompletableFuture<OfferEntryResult> asyncOfferEntry(EntryImpl entry) {
             return CompletableFuture.completedFuture(offerEntry(entry));
         }
 
         CompletableFuture<OffloadResult> getOffloadResultAsync();
+
+        /**
+         * Manually close current offloading segment
+         * @return true if the segment is not already closed
+         */
+        boolean close();
+
+        default CompletableFuture<Boolean> AsyncClose() {
+            return CompletableFuture.completedFuture(close());
+        }
     }
 
     // TODO: improve the user metadata in subsequent changes
