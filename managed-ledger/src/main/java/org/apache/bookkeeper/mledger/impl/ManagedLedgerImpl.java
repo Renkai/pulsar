@@ -136,9 +136,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
-    //TODO add code to support switch between streaming and ledger-based offloading
-    //TODO ensure we create exactly one offloader for one segment to write in streaming
-    //TODO implement start offload after managed ledger created
     //TODO add integration test for streaming offload
 
     private final static long MegaByte = 1024 * 1024;
@@ -408,7 +405,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     /**
      * Should be called after `ledgers` were initialized.
      */
-    synchronized void initializeStreamingOffloader() {
+    void initializeStreamingOffloader() {
+        if (!offloadMutex.tryLock()) {
+            log.info("try streaming offload,but already offloading");
+            return;
+        }
         if (getOffloadMethod() == OffloadMethod.STREAMING_BASED) {
             log.info("Streaming offload enabled for managed ledger: {}", name);
         } else {
@@ -499,8 +500,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private synchronized void startOffload() {
-        //TODO add mutex to verify only one offload
-
         final SegmentInfoImpl headSegment = offloadSegments.peek();
         try {
             this.currentOffloadHandle = offloader
@@ -508,31 +507,44 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             headSegment.driverMetadata).get();
             this.currentOffloadHandle.getOffloadResultAsync().whenComplete((result, ex) -> {
                 if (ex != null) {
+                    offloadMutex.unlock();
                     log.error("offload failed", ex);
                 } else {
                     final SegmentInfoImpl segmentInfo = offloadSegments.poll();
                     if (segmentInfo == null) {
+                        offloadMutex.unlock();
                         throw new RuntimeException("An empty segment list, should not happen");
                     }
                     final LedgerOffloader.OffloadResult expectedResult = segmentInfo.result();
 
                     if (expectedResult.equals(result)) {
+                        offloadMutex.unlock();
                         throw new RuntimeException(
                                 Strings.lenientFormat("expect result %s got %s, should not happen", expectedResult,
                                         result));
                     }
 
                     updatedMetaForOffloaded(segmentInfo);
+                    if (!offloadSegments.isEmpty()) {
+                        log.error("offload segments not cleared, should not happen: {}", offloadSegments);
+                        offloadSegments.clear();
+                    }
                     initializeSegments();
                     //use new offloader after segment closed
                     offloader = config.getLedgerOffloader().fork();
 
                     if (offloadSegments.isEmpty()) {
+                        offloadMutex.unlock();
                         throw new RuntimeException(
                                 "Streaming offloading began but there is no segments to offload, should not happen.");
                     }
                 }
-                startOffload();
+                if (getOffloadMethod().equals(OffloadMethod.STREAMING_BASED)) {
+                    startOffload();
+                } else {
+                    offloadMutex.unlock();
+                    log.info("streaming offload disabled due to configuration changed");
+                }
             });
         } catch (InterruptedException | ExecutionException e) {
             log.error("failed to continue streaming offload", e);
@@ -1896,8 +1908,15 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         trimConsumedLedgersInBackground();
 
-        if (getOffloadMethod() == OffloadMethod.LEDGER_BASED) {
-            maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
+        switch (getOffloadMethod()) {
+            case LEDGER_BASED:
+                maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
+                break;
+            case STREAMING_BASED:
+                initializeStreamingOffloader();
+                break;
+            case NONE:
+                break;
         }
 
         if (!pendingAddEntries.isEmpty()) {
@@ -2516,7 +2535,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     long size = e.getValue().getSize();
                     sizeSummed += size;
                     boolean alreadyOffloaded = e.getValue().hasOffloadContext()
-                            && e.getValue().getOffloadContext().getComplete();
+                            && (e.getValue().getOffloadContext().getComplete() || isStreamingOffloadCompleted(
+                            e.getValue()));
                     if (alreadyOffloaded) {
                         alreadyOffloadedSize += size;
                     } else if (sizeSummed > threshold) {

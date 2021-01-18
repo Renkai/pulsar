@@ -70,4 +70,13 @@ public class CallbackMutex {
     }
 
     private static final Logger log = LoggerFactory.getLogger(CallbackMutex.class);
+
+    @Override
+    public String toString() {
+        return "CallbackMutex{" +
+                "semaphore=" + semaphore +
+                ", owner='" + owner + '\'' +
+                ", position='" + position + '\'' +
+                '}';
+    }
 }
