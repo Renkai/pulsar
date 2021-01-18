@@ -409,11 +409,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * Should be called after `ledgers` were initialized.
      */
     synchronized void initializeStreamingOffloader() {
-        if (getOffloadMethod() != OffloadMethod.STREAMING_BASED) {
+        if (getOffloadMethod() == OffloadMethod.STREAMING_BASED) {
+            log.info("Streaming offload enabled for managed ledger: {}", name);
+        } else {
             log.info("Streaming offload not enabled for managed ledger: {}", name);
             return;
-        } else {
-            log.info("Streaming offload enabled for managed ledger: {}", name);
         }
         offloader = config.getLedgerOffloader().fork();
 
@@ -1896,7 +1896,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         trimConsumedLedgersInBackground();
 
-        if (getOffloadMethod() != OffloadMethod.STREAMING_BASED) {
+        if (getOffloadMethod() == OffloadMethod.LEDGER_BASED) {
             maybeOffloadInBackground(NULL_OFFLOAD_PROMISE);
         }
 
