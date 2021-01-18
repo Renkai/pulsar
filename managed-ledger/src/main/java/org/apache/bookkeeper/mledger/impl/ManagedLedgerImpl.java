@@ -3138,6 +3138,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     public OffloadMethod getOffloadMethod() {
+        if (config.getLedgerOffloader() == null) {
+            return OffloadMethod.NONE;
+        }
+        if (config.getLedgerOffloader().getOffloadPolicies() == null) {
+            return OffloadMethod.NONE;
+        }
         return config.getLedgerOffloader().getOffloadPolicies().getOffloadMethod();
     }
 
