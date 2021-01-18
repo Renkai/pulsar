@@ -43,6 +43,7 @@ public class SegmentInfoImpl implements LedgerOffloader.SegmentInfo {
     volatile private long endLedger;
     volatile private long endEntry;
     volatile boolean closed = false;
+    public final long beginTimestamp = System.currentTimeMillis();
     public final Map<String, String> driverMetadata;
 
     public boolean isClosed() {
