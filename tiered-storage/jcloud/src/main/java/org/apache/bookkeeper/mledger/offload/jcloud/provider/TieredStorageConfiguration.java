@@ -67,7 +67,7 @@ public class TieredStorageConfiguration {
     public static final String MIN_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC = "minOffloadSegmentRolloverTimeInSeconds";
     public static final long DEFAULT_MAX_SEGMENT_TIME_IN_SECOND = 600;
     public static final long DEFAULT_MIN_SEGMENT_TIME_IN_SECOND = 0;
-    public static final String MAX_SEGMENT_SIZE_IN_BYTES = "maxSegmentSizeInBytes";
+    public static final String MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES = "maxOffloadSegmentSizeInBytes";
     public static final long DEFAULT_MAX_SEGMENT_SIZE_IN_BYTES = 1024 * 1024 * 1024;
 
     protected static final int MB = 1024 * 1024;
@@ -200,8 +200,8 @@ public class TieredStorageConfiguration {
     }
 
     public long getMaxSegmentSizeInBytes() {
-        if (configProperties.containsKey(MAX_SEGMENT_SIZE_IN_BYTES)) {
-            return Long.parseLong(configProperties.get(MAX_SEGMENT_SIZE_IN_BYTES));
+        if (configProperties.containsKey(MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES)) {
+            return Long.parseLong(configProperties.get(MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES));
         } else {
             return DEFAULT_MAX_SEGMENT_SIZE_IN_BYTES;
         }

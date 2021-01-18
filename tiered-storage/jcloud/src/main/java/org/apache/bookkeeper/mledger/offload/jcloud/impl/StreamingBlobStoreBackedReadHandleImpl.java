@@ -183,7 +183,6 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
                             throw new BKException.BKUnexpectedConditionException();
                         } else {
                             val skipped = groupedReader.inputStream.skip(length);
-                            log.info("Skipped {} bytes.", skipped);
                         }
                     }
                 } catch (Throwable t) {

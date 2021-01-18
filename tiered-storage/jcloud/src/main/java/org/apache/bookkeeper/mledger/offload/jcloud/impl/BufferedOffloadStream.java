@@ -26,7 +26,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.LedgerOffloader.SegmentInfoImpl;
+import org.apache.bookkeeper.mledger.impl.SegmentInfoImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 @Slf4j
