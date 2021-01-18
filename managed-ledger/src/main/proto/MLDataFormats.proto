@@ -60,7 +60,7 @@ message ManagedLedgerInfo {
         optional OffloadContext offloadContext = 5;
     }
 
-  repeated LedgerInfo ledgerInfo = 1;
+    repeated LedgerInfo ledgerInfo = 1;
 
     // If present, it signals the managed ledger has been
     // terminated and this was the position of the last
@@ -69,6 +69,14 @@ message ManagedLedgerInfo {
     optional NestedPositionInfo terminatedPosition = 2;
 
     repeated KeyValue properties = 3;
+
+    //if none, this ManagedLedgerInfo is a root node
+    optional OffloadDriverMetadata driverMetadata = 4;
+
+    //both inclusive range
+    optional int64 beginLedgerId = 5;
+    optional int64 endLedgerId = 6;
+    repeated ManagedLedgerInfo tieredLedgerInfo = 7;
 }
 
 message PositionInfo {
