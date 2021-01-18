@@ -90,7 +90,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         return offloader;
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void testHappyCase() throws Exception {
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
@@ -115,7 +115,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         log.info("Offload reasult: {}", offloadResult);
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void testReadAndWrite() throws Exception {
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
@@ -306,7 +306,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         }
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void testRandomRead() throws Exception {
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
@@ -391,7 +391,7 @@ public class BlobStoreManagedLedgerOffloaderStreamingTest extends BlobStoreManag
         }
     }
 
-    @Test(timeOut = 10000)
+    @Test
     public void testInvalidEntryIds() throws Exception {
         LedgerOffloader offloader = getOffloader(new HashMap<String, String>() {{
             put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
