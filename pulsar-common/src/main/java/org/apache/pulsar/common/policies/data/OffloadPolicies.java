@@ -191,7 +191,7 @@ public class OffloadPolicies implements Serializable {
     @Configuration
     private OffloadedReadPriority managedLedgerOffloadedReadPriority = DEFAULT_OFFLOADED_READ_PRIORITY;
     @Configuration
-    private OffloadMethod offloadMethod = DEFAULT_OFFLOAD_METHOD; //TODO read from config file
+    private OffloadMethod offloadMethod = DEFAULT_OFFLOAD_METHOD;
 
     // s3 config, set by service configuration or cli
     @Configuration
@@ -399,7 +399,8 @@ public class OffloadPolicies implements Serializable {
             return false;
         }
         OffloadPolicies other = (OffloadPolicies) obj;
-        return Objects.equals(managedLedgerOffloadedReadPriority, other.getManagedLedgerOffloadedReadPriority())
+        return Objects.equals(offloadMethod, other.getOffloadMethod())
+                && Objects.equals(managedLedgerOffloadedReadPriority, other.getManagedLedgerOffloadedReadPriority())
                 && Objects.equals(managedLedgerOffloadDriver, other.getManagedLedgerOffloadDriver())
                 && Objects.equals(managedLedgerOffloadMaxThreads, other.getManagedLedgerOffloadMaxThreads())
                 && Objects.equals(managedLedgerOffloadPrefetchRounds, other.getManagedLedgerOffloadPrefetchRounds())
@@ -440,6 +441,7 @@ public class OffloadPolicies implements Serializable {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
+                .add("offloadMethod", offloadMethod)
                 .add("managedLedgerOffloadedReadPriority", managedLedgerOffloadedReadPriority)
                 .add("managedLedgerOffloadDriver", managedLedgerOffloadDriver)
                 .add("managedLedgerOffloadMaxThreads", managedLedgerOffloadMaxThreads)
@@ -471,6 +473,7 @@ public class OffloadPolicies implements Serializable {
 
     public Properties toProperties() {
         Properties properties = new Properties();
+        setProperty(properties, "offloadMethod", this.getOffloadMethod());
         setProperty(properties, "managedLedgerOffloadedReadPriority", this.getManagedLedgerOffloadedReadPriority());
         setProperty(properties, "offloadersDirectory", this.getOffloadersDirectory());
         setProperty(properties, "managedLedgerOffloadDriver", this.getManagedLedgerOffloadDriver());
