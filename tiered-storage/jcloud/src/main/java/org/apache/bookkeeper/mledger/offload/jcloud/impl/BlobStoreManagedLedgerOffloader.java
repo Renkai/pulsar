@@ -352,6 +352,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             } else {
                 scheduler.chooseThread(segmentInfo)
                         .schedule(() -> streamingOffloadLoop(partId, dataObjectLength), 100, TimeUnit.MILLISECONDS);
+                return;
             }
         }
         final Entry peek = offloadBuffer.peek();
