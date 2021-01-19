@@ -367,7 +367,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         final BufferedOffloadStream payloadStream;
         payloadStream = new BufferedOffloadStream(tempBlockSize, offloadBuffer, segmentInfo,
                 blockLedgerId, blockEntryId, bufferLength);
-        log.debug("begin upload payload");
+        log.debug("begin upload payload: {} {}", blockLedgerId, blockEntryId);
         Payload partPayload = Payloads.newInputStreamPayload(payloadStream);
         partPayload.getContentMetadata().setContentType("application/octet-stream");
         streamingParts.add(blobStore.uploadMultipartPart(streamingMpu, partId, partPayload));
@@ -376,7 +376,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         log.debug("UploadMultipartPart. container: {}, blobName: {}, partId: {}, mpu: {}",
                 config.getBucket(), streamingDataBlockKey, partId, streamingMpu.id());
         if (segmentInfo.isClosed() && offloadBuffer.isEmpty()) {
-            log.debug("segment closed, buffer is empty");
+            log.debug("segment closed, buffer is empty, ledger id: {}", blockLedgerId);
             try {
                 blobStore.completeMultipartUpload(streamingMpu, streamingParts);
                 streamingIndexBuilder.withDataObjectLength(dataObjectLength + tempBlockSize);
@@ -409,12 +409,15 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 log.error("streaming offload failed", e);
                 offloadResult.completeExceptionally(e);
             }
-            log.debug("offload done");
+            log.debug("offload done, begin ledgerId: {}, begin entryId: {}", blockLedgerId, blockEntryId);
         } else {
-            log.debug("continue offload loop");
             final int newDataObjectLength = dataObjectLength + tempBlockSize;
+            final int newPartId = partId + 1;
+            log.debug("continue offload loop, partId: {} ,current length: {}", newPartId, newDataObjectLength);
             scheduler.chooseThread(segmentInfo)
-                    .execute(() -> streamingOffloadLoop(partId + 1, newDataObjectLength));
+                    .execute(() -> {
+                        streamingOffloadLoop(newPartId, newDataObjectLength);
+                    });
         }
     }
 
