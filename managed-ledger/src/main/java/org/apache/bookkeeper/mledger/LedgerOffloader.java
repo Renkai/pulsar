@@ -25,7 +25,6 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
-import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -76,24 +75,18 @@ public interface LedgerOffloader {
          */
         boolean canOffer(long size);
 
-        default CompletableFuture<Boolean> asyncCanOffer(long size) {
-            return CompletableFuture.completedFuture(canOffer(size));
-        }
+        CompletableFuture<Boolean> canOfferAsync(long size);
 
-        PositionImpl lastOffered();
+        Position lastOffered();
 
-        default CompletableFuture<PositionImpl> asyncLastOffered() {
-            return CompletableFuture.completedFuture(lastOffered());
-        }
+        CompletableFuture<PositionImpl> lastOfferedAsync();
 
         /**
          * The caller should manually release entry no matter what the offer result is.
          */
         OfferEntryResult offerEntry(Entry entry);
 
-        default CompletableFuture<OfferEntryResult> asyncOfferEntry(EntryImpl entry) {
-            return CompletableFuture.completedFuture(offerEntry(entry));
-        }
+        CompletableFuture<OfferEntryResult> offerEntryAsync(Entry entry);
 
         CompletableFuture<OffloadResult> getOffloadResultAsync();
 

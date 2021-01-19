@@ -57,9 +57,9 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
     private final ExecutorService executor;
 
     static class GroupedReader {
-        long ledgerId;
-        long firstEntry;
-        long lastEntry;
+        public final long ledgerId;
+        public final long firstEntry;
+        public final long lastEntry;
         StreamingOffloadIndexBlock index;
         BackedInputStream inputStream;
         DataInputStream dataStream;
@@ -96,7 +96,8 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
 
     @Override
     public LedgerMetadata getLedgerMetadata() {
-        return indices.get(0).getLedgerMetadata(ledgerId);
+        //get the most complete one
+        return indices.get(indices.size() - 1).getLedgerMetadata(ledgerId);
     }
 
     @Override
@@ -107,8 +108,8 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
                 for (StreamingOffloadIndexBlock indexBlock : indices) {
                     indexBlock.close();
                 }
-                for (BackedInputStream inputStream : inputStreams) {
-                    inputStream.close();
+                for (DataInputStream dataStream : dataStreams) {
+                    dataStream.close();
                 }
                 promise.complete(null);
             } catch (IOException t) {
@@ -125,7 +126,7 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
         if (firstEntry > lastEntry
                 || firstEntry < 0
                 || lastEntry > getLastAddConfirmed()) {
-            promise.completeExceptionally(new BKException.BKIncorrectParameterException());
+            promise.completeExceptionally(new IllegalArgumentException());
             return promise;
         }
         executor.submit(() -> {
@@ -212,6 +213,12 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
         }
 
         Preconditions.checkArgument(firstEntry > lastEntry);
+        for (int i = 0; i < groupedReaders.size() - 1; i++) {
+            final GroupedReader readerI = groupedReaders.get(i);
+            final GroupedReader readerII = groupedReaders.get(i);
+            Preconditions.checkArgument(readerI.ledgerId == readerII.ledgerId);
+            Preconditions.checkArgument(readerI.firstEntry >= readerII.lastEntry);
+        }
         return groupedReaders;
     }
 

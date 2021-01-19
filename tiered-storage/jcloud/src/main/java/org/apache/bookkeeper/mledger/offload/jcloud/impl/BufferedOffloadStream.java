@@ -26,13 +26,13 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.impl.SegmentInfoImpl;
+import org.apache.bookkeeper.mledger.impl.OffloadSegmentInfoImpl;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 
 @Slf4j
 public class BufferedOffloadStream extends InputStream {
     static final int[] BLOCK_END_PADDING = BlockAwareSegmentInputStreamImpl.BLOCK_END_PADDING;
-    private final SegmentInfoImpl segmentInfo;
+    private final OffloadSegmentInfoImpl segmentInfo;
 
     private final long ledgerId;
     private final long beginEntryId;
@@ -42,7 +42,7 @@ public class BufferedOffloadStream extends InputStream {
     private final ConcurrentLinkedQueue<Entry> entryBuffer;
     private final InputStream blockHead;
     int offset = 0;
-    static int NOT_INITIALIZED = -1;
+    static final int NOT_INITIALIZED = -1;
     int validDataOffset = NOT_INITIALIZED;
     CompositeByteBuf currentEntry;
 
@@ -61,7 +61,7 @@ public class BufferedOffloadStream extends InputStream {
 
     public BufferedOffloadStream(int blockSize,
                                  ConcurrentLinkedQueue<Entry> entryBuffer,
-                                 SegmentInfoImpl segmentInfo,
+                                 OffloadSegmentInfoImpl segmentInfo,
                                  long ledgerId,
                                  long beginEntryId,
                                  AtomicLong bufferLength) {
@@ -135,6 +135,7 @@ public class BufferedOffloadStream extends InputStream {
             ByteBuf entryHeaderBuf = PulsarByteBufAllocator.DEFAULT.buffer(ENTRY_HEADER_SIZE, ENTRY_HEADER_SIZE);
             entryHeaderBuf.writeInt(entryLength).writeLong(entryId);
             entryBuf.addComponents(true, entryHeaderBuf, headEntry.getDataBuffer().retain());
+            headEntry.release();
             currentEntry = entryBuf;
             return read();
         } else {
@@ -144,5 +145,10 @@ public class BufferedOffloadStream extends InputStream {
             }
             return BLOCK_END_PADDING[offset++ - validDataOffset];
         }
+    }
+
+    @Override
+    public void close() throws IOException {
+        blockHead.close();
     }
 }

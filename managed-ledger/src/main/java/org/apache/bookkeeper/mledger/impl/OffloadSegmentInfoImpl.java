@@ -25,23 +25,23 @@ import lombok.ToString;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 
 @ToString
-public class SegmentInfoImpl implements LedgerOffloader.SegmentInfo {
-    public SegmentInfoImpl(UUID uuid, long beginLedger, long beginEntry, String driverName,
-                           Map<String, String> driverMetadata) {
+public class OffloadSegmentInfoImpl implements LedgerOffloader.SegmentInfo {
+    public OffloadSegmentInfoImpl(UUID uuid, long beginLedgerId, long beginEntryId, String driverName,
+                                  Map<String, String> driverMetadata) {
         this.uuid = uuid;
-        this.beginLedger = beginLedger;
-        this.beginEntry = beginEntry;
+        this.beginLedgerId = beginLedgerId;
+        this.beginEntryId = beginEntryId;
         this.driverName = driverName;
         this.driverMetadata = driverMetadata;
     }
 
 
     public final UUID uuid;
-    public final long beginLedger;
-    public final long beginEntry;
+    public final long beginLedgerId;
+    public final long beginEntryId;
     public final String driverName;
-    volatile private long endLedger;
-    volatile private long endEntry;
+    volatile private long endLedgerId;
+    volatile private long endEntryId;
     volatile boolean closed = false;
     public final Map<String, String> driverMetadata;
 
@@ -50,12 +50,12 @@ public class SegmentInfoImpl implements LedgerOffloader.SegmentInfo {
     }
 
     public void closeSegment(long endLedger, long endEntry) {
-        this.endLedger = endLedger;
-        this.endEntry = endEntry;
+        this.endLedgerId = endLedger;
+        this.endEntryId = endEntry;
         this.closed = true;
     }
 
     public LedgerOffloader.OffloadResult result() {
-        return new LedgerOffloader.OffloadResult(beginLedger, beginEntry, endLedger, endEntry);
+        return new LedgerOffloader.OffloadResult(beginLedgerId, beginEntryId, endLedgerId, endEntryId);
     }
 }

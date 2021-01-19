@@ -151,18 +151,6 @@ public class ManagedLedgerException extends Exception {
         }
     }
 
-    public static class OffloadSegmentClosedException extends ManagedLedgerException {
-        public OffloadSegmentClosedException(String msg) {
-            super(msg);
-        }
-    }
-
-    public static class OffloadNotConsecutiveException extends ManagedLedgerException {
-        public OffloadNotConsecutiveException(String msg) {
-            super(msg);
-        }
-    }
-
     public static class CursorNotFoundException extends ManagedLedgerException {
         public CursorNotFoundException(String msg) {
             super(msg);

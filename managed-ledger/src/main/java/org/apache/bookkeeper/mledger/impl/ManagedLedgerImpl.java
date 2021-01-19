@@ -24,7 +24,6 @@ import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.Errors.isNoSuchLedgerExistsException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -1687,18 +1686,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public CompletableFuture<LedgerInfo> getClosedLedgerInfo(long ledgerId) {
+    public CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId) {
         CompletableFuture<LedgerInfo> result = new CompletableFuture<>();
         final LedgerInfo ledgerInfo = ledgers.get(ledgerId);
-        if (ledgerInfo == null) {
-            final ManagedLedgerException exception = new ManagedLedgerException(
-                    Strings.lenientFormat("ledger with id %s not found", ledgerId));
-            result.completeExceptionally(exception);
-        } else if (ledgerInfo.getSize() == 0 || ledgerInfo.getEntries() == 0) {
-            final ManagedLedgerException exception = new ManagedLedgerException(
-                    Strings.lenientFormat("ledger with id %s has not closed yet", ledgerId));
-            result.completeExceptionally(exception);
-        }
         result.complete(ledgerInfo);
         return result;
     }

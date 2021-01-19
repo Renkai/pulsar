@@ -321,7 +321,7 @@ public class MockManagedLedger implements ManagedLedger {
     }
 
     @Override
-    public CompletableFuture<LedgerInfo> getClosedLedgerInfo(long ledgerId) {
+    public CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId) {
         final LedgerInfo build = LedgerInfo.newBuilder().setLedgerId(ledgerId).setSize(100).setEntries(20).build();
         return CompletableFuture.completedFuture(build);
     }

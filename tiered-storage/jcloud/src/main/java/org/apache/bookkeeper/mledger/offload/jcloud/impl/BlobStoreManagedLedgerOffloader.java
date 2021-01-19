@@ -31,7 +31,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
@@ -42,8 +41,8 @@ import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloader.OffloadHandle.OfferEntryResult;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
+import org.apache.bookkeeper.mledger.impl.OffloadSegmentInfoImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.mledger.impl.SegmentInfoImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.BlockAwareSegmentInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlock.IndexInputStream;
@@ -53,6 +52,7 @@ import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlockBu
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.BlobStoreLocation;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.jclouds.blobstore.BlobStore;
 import org.jclouds.blobstore.domain.Blob;
@@ -86,7 +86,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private final Map<String, String> userMetadata;
 
     private final ConcurrentMap<BlobStoreLocation, BlobStore> blobStores = new ConcurrentHashMap<>();
-    private SegmentInfoImpl segmentInfo;
+    private OffloadSegmentInfoImpl segmentInfo;
     private AtomicLong bufferLength = new AtomicLong(0);
     private AtomicLong segmentLength = new AtomicLong(0);
     final private long maxBufferLength = 10 * 1024 * 1024;
@@ -276,7 +276,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                                                              long beginEntry,
                                                              Map<String, String> driverMetadata) {
         this.ml = ml;
-        this.segmentInfo = new SegmentInfoImpl(uuid, beginLedger, beginEntry, config.getDriver(), driverMetadata);
+        this.segmentInfo = new OffloadSegmentInfoImpl(uuid, beginLedger, beginEntry, config.getDriver(),
+                driverMetadata);
         log.debug("begin offload with {}:{}", beginLedger, beginEntry);
         this.offloadResult = new CompletableFuture<>();
         blobStore = blobStores.get(config.getBlobStoreLocation());
@@ -302,13 +303,28 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             }
 
             @Override
+            public CompletableFuture<Boolean> canOfferAsync(long size) {
+                return CompletableFuture.completedFuture(canOffer(size));
+            }
+
+            @Override
             public PositionImpl lastOffered() {
                 return BlobStoreManagedLedgerOffloader.this.lastOffered();
             }
 
             @Override
+            public CompletableFuture<PositionImpl> lastOfferedAsync() {
+                return CompletableFuture.completedFuture(lastOffered());
+            }
+
+            @Override
             public OfferEntryResult offerEntry(Entry entry) {
                 return BlobStoreManagedLedgerOffloader.this.offerEntry(entry);
+            }
+
+            @Override
+            public CompletableFuture<OfferEntryResult> offerEntryAsync(Entry entry) {
+                return CompletableFuture.completedFuture(offerEntry(entry));
             }
 
             @Override
@@ -329,37 +345,33 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             offloadResult.complete(segmentInfo.result());
             return;
         }
-        final BufferedOffloadStream payloadStream;
 
         while (offloadBuffer.isEmpty()) {
             if (segmentInfo.isClosed()) {
                 offloadResult.complete(segmentInfo.result());
             } else {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+                scheduler.chooseThread(segmentInfo)
+                        .schedule(() -> streamingOffloadLoop(partId, dataObjectLength), 100, TimeUnit.MILLISECONDS);
             }
         }
         final Entry peek = offloadBuffer.peek();
         //initialize payload when there is at least one entry
         final long blockLedgerId = peek.getLedgerId();
         final long blockEntryId = peek.getEntryId();
-        payloadStream = new BufferedOffloadStream(streamingBlockSize, offloadBuffer, segmentInfo,
-                blockLedgerId, blockEntryId, bufferLength);
-        try {
-            streamingIndexBuilder.addLedgerMeta(blockLedgerId, ml.getClosedLedgerInfo(blockLedgerId).get());
-            streamingIndexBuilder.withDataBlockHeaderLength(StreamingDataBlockHeaderImpl.getDataStartOffset());
-        } catch (InterruptedException | ExecutionException e) {
-            offloadResult.completeExceptionally(e);
-            return;
+        int tempBlockSize = streamingBlockSize;
+        while (tempBlockSize <= peek
+                .getLength() + StreamingDataBlockHeaderImpl.HEADER_MAX_SIZE + BufferedOffloadStream.ENTRY_HEADER_SIZE) {
+            tempBlockSize = tempBlockSize + tempBlockSize;
         }
+
+        final BufferedOffloadStream payloadStream;
+        payloadStream = new BufferedOffloadStream(tempBlockSize, offloadBuffer, segmentInfo,
+                blockLedgerId, blockEntryId, bufferLength);
         log.debug("begin upload payload");
         Payload partPayload = Payloads.newInputStreamPayload(payloadStream);
         partPayload.getContentMetadata().setContentType("application/octet-stream");
         streamingParts.add(blobStore.uploadMultipartPart(streamingMpu, partId, partPayload));
-        streamingIndexBuilder.addBlock(blockLedgerId, blockEntryId, partId, streamingBlockSize);
+        streamingIndexBuilder.addBlock(blockLedgerId, blockEntryId, partId, tempBlockSize);
 
         log.debug("UploadMultipartPart. container: {}, blobName: {}, partId: {}, mpu: {}",
                 config.getBucket(), streamingDataBlockKey, partId, streamingMpu.id());
@@ -367,10 +379,22 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             log.debug("segment closed, buffer is empty");
             try {
                 blobStore.completeMultipartUpload(streamingMpu, streamingParts);
-                streamingIndexBuilder.withDataObjectLength(dataObjectLength + streamingBlockSize);
+                streamingIndexBuilder.withDataObjectLength(dataObjectLength + tempBlockSize);
                 final StreamingOffloadIndexBlock index = streamingIndexBuilder.buildStreaming();
                 final IndexInputStream indexStream = index.toStream();
                 final BlobBuilder indexBlobBuilder = blobStore.blobBuilder(streamingDataIndexKey);
+                final LedgerInfo ledgerInfo = ml.getLedgerInfo(blockLedgerId).get();
+                final LedgerInfo.Builder ledgerInfoBuilder = LedgerInfo.newBuilder();
+                if (ledgerInfo != null) {
+                    ledgerInfoBuilder.mergeFrom(ledgerInfo);
+                }
+                if (ledgerInfoBuilder.getEntries() == 0) {
+                    //ledger unclosed, use last offered
+                    ledgerInfoBuilder.setEntries(lastOfferedPosition.getEntryId() + 1);
+                }
+                streamingIndexBuilder.addLedgerMeta(blockLedgerId, ledgerInfoBuilder.build());
+                streamingIndexBuilder.withDataBlockHeaderLength(StreamingDataBlockHeaderImpl.getDataStartOffset());
+
                 DataBlockUtils.addVersionInfo(indexBlobBuilder, userMetadata);
                 final InputStreamPayload indexPayLoad = Payloads.newInputStreamPayload(indexStream);
                 indexPayLoad.getContentMetadata().setContentLength(indexStream.getStreamSize());
@@ -388,8 +412,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             log.debug("offload done");
         } else {
             log.debug("continue offload loop");
+            final int newDataObjectLength = dataObjectLength + tempBlockSize;
             scheduler.chooseThread(segmentInfo)
-                    .execute(() -> streamingOffloadLoop(partId + 1, dataObjectLength + streamingBlockSize));
+                    .execute(() -> streamingOffloadLoop(partId + 1, newDataObjectLength));
         }
     }
 
@@ -407,12 +432,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
                 && !(entry.getLength() > maxBufferLength && offloadBuffer.isEmpty())) {
             return OfferEntryResult.FAIL_BUFFER_FULL;
         } else {
-            if (!naiveCheckConsecutive(lastOfferedPosition,
-                    PositionImpl.get(entry.getLedgerId(), entry.getEntryId()))) {
-                log.error("position {} and {} are not consecutive", lastOfferedPosition,
-                        entry.getPosition());
-                return OfferEntryResult.FAIL_NOT_CONSECUTIVE;
-            }
             final EntryImpl entryImpl = EntryImpl
                     .create(entry.getLedgerId(), entry.getEntryId(), entry.getDataBuffer());
             offloadBuffer.add(entryImpl);
@@ -432,18 +451,6 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         log.debug("close segment {} {}", lastOfferedPosition.getLedgerId(), lastOfferedPosition.getEntryId());
         this.segmentInfo.closeSegment(lastOfferedPosition.getLedgerId(), lastOfferedPosition.getEntryId());
         return result;
-    }
-
-    private static boolean naiveCheckConsecutive(PositionImpl lastOfferedPosition, PositionImpl offeringPosition) {
-        if (offeringPosition.getLedgerId() == lastOfferedPosition.getLedgerId()
-                && offeringPosition.getEntryId() == lastOfferedPosition.getEntryId() + 1) {
-            return true;
-        } else if (offeringPosition.getEntryId() == 0) {
-            return true;
-        } else {
-            // lastOfferedPosition not initialized
-            return lastOfferedPosition.equals(PositionImpl.latest);
-        }
     }
 
     private PositionImpl lastOffered() {

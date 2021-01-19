@@ -36,7 +36,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
-import org.apache.bookkeeper.mledger.impl.SegmentInfoImpl;
+import org.apache.bookkeeper.mledger.impl.OffloadSegmentInfoImpl;
 import org.junit.Test;
 import org.testng.Assert;
 
@@ -47,7 +47,7 @@ public class BufferedOffloadStreamTest {
         int blockSize = StreamingDataBlockHeaderImpl.getDataStartOffset();
         ConcurrentLinkedQueue<Entry> entryBuffer = new ConcurrentLinkedQueue<>();
         final UUID uuid = UUID.randomUUID();
-        SegmentInfoImpl segmentInfo = new SegmentInfoImpl(uuid, 0, 0, "",
+        OffloadSegmentInfoImpl segmentInfo = new OffloadSegmentInfoImpl(uuid, 0, 0, "",
                 new HashMap<>());
         AtomicLong bufferLength = new AtomicLong();
         final int entryCount = 10;
@@ -65,8 +65,8 @@ public class BufferedOffloadStreamTest {
         blockSize += paddingLen;
 
         final BufferedOffloadStream inputStream = new BufferedOffloadStream(blockSize, entryBuffer,
-                segmentInfo, segmentInfo.beginLedger,
-                segmentInfo.beginEntry, bufferLength);
+                segmentInfo, segmentInfo.beginLedgerId,
+                segmentInfo.beginEntryId, bufferLength);
         assertEquals(inputStream.getLedgerId(), 0);
         assertEquals(inputStream.getBeginEntryId(), 0);
         assertEquals(inputStream.getBlockSize(), blockSize);
@@ -126,7 +126,7 @@ public class BufferedOffloadStreamTest {
         int paddingLen = 10;
         ConcurrentLinkedQueue<Entry> entryBuffer = new ConcurrentLinkedQueue<>();
         final UUID uuid = UUID.randomUUID();
-        SegmentInfoImpl segmentInfo = new SegmentInfoImpl(uuid, 0, 0, "",
+        OffloadSegmentInfoImpl segmentInfo = new OffloadSegmentInfoImpl(uuid, 0, 0, "",
                 new HashMap<>());
         AtomicLong bufferLength = new AtomicLong();
         final int entryCount = 10;
@@ -151,8 +151,8 @@ public class BufferedOffloadStreamTest {
         blockSize += paddingLen;
 
         final BufferedOffloadStream inputStream = new BufferedOffloadStream(blockSize, entryBuffer,
-                segmentInfo, segmentInfo.beginLedger,
-                segmentInfo.beginEntry, bufferLength);
+                segmentInfo, segmentInfo.beginLedgerId,
+                segmentInfo.beginEntryId, bufferLength);
         assertEquals(inputStream.getLedgerId(), 0);
         assertEquals(inputStream.getBeginEntryId(), 0);
         assertEquals(inputStream.getBlockSize(), blockSize);
