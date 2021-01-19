@@ -174,6 +174,8 @@ public class OffloadPolicies implements Serializable {
     public final static String DELETION_LAG_NAME_IN_CONF_FILE = "managedLedgerOffloadDeletionLagMs";
     public final static OffloadedReadPriority DEFAULT_OFFLOADED_READ_PRIORITY = OffloadedReadPriority.TIERED_STORAGE_FIRST;
     public final static OffloadMethod DEFAULT_OFFLOAD_METHOD = OffloadMethod.LEDGER_BASED;
+    public static final long DEFAULT_MAX_SEGMENT_TIME_IN_SECOND = 600;
+
 
     // common config
     @Configuration
@@ -192,6 +194,9 @@ public class OffloadPolicies implements Serializable {
     private OffloadedReadPriority managedLedgerOffloadedReadPriority = DEFAULT_OFFLOADED_READ_PRIORITY;
     @Configuration
     private OffloadMethod offloadMethod = DEFAULT_OFFLOAD_METHOD;
+
+    @Configuration
+    private Long maxOffloadSegmentRolloverTimeInSeconds = DEFAULT_MAX_SEGMENT_TIME_IN_SECOND;
 
     // s3 config, set by service configuration or cli
     @Configuration
@@ -363,6 +368,8 @@ public class OffloadPolicies implements Serializable {
     @Override
     public int hashCode() {
         return Objects.hash(
+                maxOffloadSegmentRolloverTimeInSeconds,
+                offloadMethod,
                 managedLedgerOffloadedReadPriority,
                 managedLedgerOffloadDriver,
                 managedLedgerOffloadMaxThreads,
@@ -399,7 +406,8 @@ public class OffloadPolicies implements Serializable {
             return false;
         }
         OffloadPolicies other = (OffloadPolicies) obj;
-        return Objects.equals(offloadMethod, other.getOffloadMethod())
+        return Objects.equals(maxOffloadSegmentRolloverTimeInSeconds, other.getMaxOffloadSegmentRolloverTimeInSeconds())
+                && Objects.equals(offloadMethod, other.getOffloadMethod())
                 && Objects.equals(managedLedgerOffloadedReadPriority, other.getManagedLedgerOffloadedReadPriority())
                 && Objects.equals(managedLedgerOffloadDriver, other.getManagedLedgerOffloadDriver())
                 && Objects.equals(managedLedgerOffloadMaxThreads, other.getManagedLedgerOffloadMaxThreads())
@@ -485,6 +493,8 @@ public class OffloadPolicies implements Serializable {
                 this.getManagedLedgerOffloadThresholdInBytes());
         setProperty(properties, "managedLedgerOffloadDeletionLagInMillis",
                 this.getManagedLedgerOffloadDeletionLagInMillis());
+        setProperty(properties, "maxOffloadSegmentRolloverTimeInSeconds",
+                this.getMaxOffloadSegmentRolloverTimeInSeconds());
 
         if (this.isS3Driver()) {
             setProperty(properties, "s3ManagedLedgerOffloadRegion",

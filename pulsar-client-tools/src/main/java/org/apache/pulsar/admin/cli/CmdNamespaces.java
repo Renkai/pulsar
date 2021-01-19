@@ -1737,6 +1737,13 @@ public class CmdNamespaces extends CmdBase {
         )
         private String offloadMethod;
 
+        @Parameter(
+                names = { "--maxSegmentRolloverTimeSec", "-mrs" },
+                description = "offload method",
+                required = false
+        )
+        private Long maxOffloadSegmentRolloverTimeInSeconds;
+
         public final ImmutableList<String> DRIVER_NAMES = OffloadPolicies.DRIVER_NAMES;
 
         public boolean driverSupported(String driver) {
@@ -1835,6 +1842,10 @@ public class CmdNamespaces extends CmdBase {
 
             if (offloadMethod != null) {
                 offloadPolicies.setOffloadMethod(OffloadPolicies.OffloadMethod.fromString(offloadMethod));
+            }
+
+            if (maxOffloadSegmentRolloverTimeInSeconds != null) {
+                offloadPolicies.setMaxOffloadSegmentRolloverTimeInSeconds(maxOffloadSegmentRolloverTimeInSeconds);
             }
 
             admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);

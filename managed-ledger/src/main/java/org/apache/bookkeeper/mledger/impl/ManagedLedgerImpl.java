@@ -136,8 +136,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
-    //TODO add integration test for streaming offload
-
     private final static long MegaByte = 1024 * 1024;
 
     protected final static int AsyncOperationTimeoutSeconds = 30;
@@ -484,7 +482,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
     }
 
-    boolean isStreamingOffloadCompleted(LedgerInfo ledgerInfo) {
+    public static boolean isStreamingOffloadCompleted(LedgerInfo ledgerInfo) {
         if (!ledgerInfo.hasEntries()) {
             //ledger is not closed
             return false;
@@ -541,7 +539,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 "Streaming offloading began but there is no segments to offload, should not happen.");
                     }
                 }
-                if (getOffloadMethod().equals(OffloadMethod.STREAMING_BASED)) {
+                if (getOffloadMethod().equals(OffloadMethod.STREAMING_BASED) && STATE_UPDATER
+                        .get(this) != State.Closed) {
                     startOffload();
                 } else {
                     offloadMutex.unlock();
@@ -1655,6 +1654,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         factory.close(this);
         STATE_UPDATER.set(this, State.Closed);
 
+        if (currentOffloadHandle != null) {
+            currentOffloadHandle.close();
+        }
+
         LedgerHandle lh = currentLedger;
 
         if (lh == null) {
@@ -1688,7 +1691,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (this.checkLedgerRollTask != null) {
             this.checkLedgerRollTask.cancel(false);
         }
-
     }
 
     private void closeAllCursors(CloseCallback callback, final Object ctx) {

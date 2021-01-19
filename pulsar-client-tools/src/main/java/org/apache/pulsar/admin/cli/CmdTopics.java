@@ -1356,6 +1356,13 @@ public class CmdTopics extends CmdBase {
         )
         private String offloadMethod;
 
+        @Parameter(
+                names = { "--maxSegmentRolloverTimeSec", "-mrs" },
+                description = "offload method",
+                required = false
+        )
+        private Long maxOffloadSegmentRolloverTimeInSeconds;
+
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
@@ -1382,6 +1389,10 @@ public class CmdTopics extends CmdBase {
 
             if (offloadMethod != null) {
                 offloadPolicies.setOffloadMethod(OffloadPolicies.OffloadMethod.fromString(offloadMethod));
+            }
+
+            if (maxOffloadSegmentRolloverTimeInSeconds != null) {
+                offloadPolicies.setMaxOffloadSegmentRolloverTimeInSeconds(maxOffloadSegmentRolloverTimeInSeconds);
             }
 
             admin.topics().setOffloadPolicies(persistentTopic, offloadPolicies);
