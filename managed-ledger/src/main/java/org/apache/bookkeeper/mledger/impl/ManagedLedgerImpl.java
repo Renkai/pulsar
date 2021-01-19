@@ -406,16 +406,18 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * Should be called after `ledgers` were initialized.
      */
     void initializeStreamingOffloader() {
-        if (!offloadMutex.tryLock()) {
-            log.info("try streaming offload,but already offloading");
-            return;
-        }
         if (getOffloadMethod() == OffloadMethod.STREAMING_BASED) {
             log.info("Streaming offload enabled for managed ledger: {}", name);
         } else {
             log.info("Streaming offload not enabled for managed ledger: {}", name);
             return;
         }
+
+        if (!offloadMutex.tryLock()) {
+            log.info("try streaming offload,but already offloading");
+            return;
+        }
+
         offloader = config.getLedgerOffloader().fork();
 
         this.offloadSegments = Queues.newConcurrentLinkedQueue();
