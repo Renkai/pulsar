@@ -40,6 +40,7 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 import org.apache.bookkeeper.mledger.LedgerOffloader.OffloadHandle.OfferEntryResult;
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.EntryImpl;
 import org.apache.bookkeeper.mledger.impl.OffloadSegmentInfoImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -308,12 +309,12 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             }
 
             @Override
-            public PositionImpl lastOffered() {
+            public Position lastOffered() {
                 return BlobStoreManagedLedgerOffloader.this.lastOffered();
             }
 
             @Override
-            public CompletableFuture<PositionImpl> lastOfferedAsync() {
+            public CompletableFuture<Position> lastOfferedAsync() {
                 return CompletableFuture.completedFuture(lastOffered());
             }
 

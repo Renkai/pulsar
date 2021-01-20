@@ -25,7 +25,6 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
@@ -79,7 +78,7 @@ public interface LedgerOffloader {
 
         Position lastOffered();
 
-        CompletableFuture<PositionImpl> lastOfferedAsync();
+        CompletableFuture<Position> lastOfferedAsync();
 
         /**
          * The caller should manually release entry no matter what the offer result is.
