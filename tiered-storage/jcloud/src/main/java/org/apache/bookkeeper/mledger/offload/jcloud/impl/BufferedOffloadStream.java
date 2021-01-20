@@ -110,6 +110,7 @@ public class BufferedOffloadStream extends InputStream {
             } else {
                 try {
                     Thread.sleep(100);
+                    //TODO try remove sleep
                 } catch (InterruptedException e) {
                     log.error("sleep failed", e);
                 }

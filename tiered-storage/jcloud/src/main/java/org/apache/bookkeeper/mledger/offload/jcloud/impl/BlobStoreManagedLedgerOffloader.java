@@ -367,6 +367,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         }
 
         final BufferedOffloadStream payloadStream;
+        //TODO close streaming
         payloadStream = new BufferedOffloadStream(tempBlockSize, offloadBuffer, segmentInfo,
                 blockLedgerId, blockEntryId, bufferLength);
         log.debug("begin upload payload: {} {}", blockLedgerId, blockEntryId);
