@@ -22,11 +22,10 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import lombok.ToString;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
-import org.apache.bookkeeper.mledger.impl.EntryImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
@@ -37,12 +36,7 @@ import org.apache.pulsar.common.policies.data.OffloadPolicies;
 @InterfaceStability.Evolving
 public interface LedgerOffloader {
 
-    interface SegmentInfo {
-        boolean isClosed();
-
-        OffloadResult result();
-    }
-
+    @ToString
     class OffloadResult {
         public final long beginLedger;
         public final long beginEntry;
@@ -69,31 +63,16 @@ public interface LedgerOffloader {
             FAIL_NOT_CONSECUTIVE
         }
 
-        /**
-         * return true when both buffer have enough size and ledger/entry id is next to the current one.
-         * @param size
-         * @return
-         */
-        boolean canOffer(long size);
+        Position lastOffered();
 
-        default CompletableFuture<Boolean> asyncCanOffer(long size) {
-            return CompletableFuture.completedFuture(canOffer(size));
-        }
-
-        PositionImpl lastOffered();
-
-        default CompletableFuture<PositionImpl> asyncLastOffered() {
-            return CompletableFuture.completedFuture(lastOffered());
-        }
+        CompletableFuture<Position> lastOfferedAsync();
 
         /**
          * The caller should manually release entry no matter what the offer result is.
          */
         OfferEntryResult offerEntry(Entry entry);
 
-        default CompletableFuture<OfferEntryResult> asyncOfferEntry(EntryImpl entry) {
-            return CompletableFuture.completedFuture(offerEntry(entry));
-        }
+        CompletableFuture<OfferEntryResult> offerEntryAsync(Entry entry);
 
         CompletableFuture<OffloadResult> getOffloadResultAsync();
 
@@ -161,6 +140,7 @@ public interface LedgerOffloader {
     /**
      * Begin offload the passed in ledgers to longterm storage, it will finish
      * when a segment reached it's size or time.
+     * Should only be called once for a LedgerOffloader instance.
      * Metadata passed in is for inspection purposes only and should be stored
      * alongside the segment data.
      *
@@ -171,7 +151,7 @@ public interface LedgerOffloader {
      * The uid is used to identify an attempt to offload. The implementation should
      * use this to deterministically generate a unique name for the offloaded object.
      * This uid will be stored in the managed ledger metadata before attempting the
-     * call to offload(). If a subsequent or concurrent call to streamingOffload() finds
+     * call to streamingOffload(). If a subsequent or concurrent call to streamingOffload() finds
      * a uid in the metadata, it will attempt to cleanup this attempt with a call
      * to #deleteOffloaded(ReadHandle,UUID). Once the offload attempt completes,
      * the managed ledger will update its metadata again, to record the completion,
@@ -237,12 +217,5 @@ public interface LedgerOffloader {
      * Close the resources if necessary
      */
     void close();
-
-    /**
-     * Create a new instance with the same configuration
-     */
-    default LedgerOffloader fork() {
-        throw new UnsupportedOperationException();
-    }
 }
 

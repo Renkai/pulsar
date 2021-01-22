@@ -37,7 +37,7 @@ public class StreamingDataBlockHeaderImpl implements DataBlockHeader {
     static final int MAGIC_WORD = 0x26A66D32;
     // This is bigger than header size. Leaving some place for alignment and future enhancement.
     // Payload use this as the start offset.
-    private static final int HEADER_MAX_SIZE = 128;
+    public static final int HEADER_MAX_SIZE = 128;
     private static final int HEADER_BYTES_USED = 4 /* magic */
             + 8 /* header len */
             + 8 /* block len */
