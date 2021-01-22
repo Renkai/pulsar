@@ -91,6 +91,10 @@ public interface LedgerOffloader {
     String METADATA_SOFTWARE_VERSION_KEY = "S3ManagedLedgerOffloaderSoftwareVersion";
     String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
 
+    default LedgerOffloader fork() {
+        throw new UnsupportedOperationException();
+    }
+
     /**
      * Get offload driver name.
      *

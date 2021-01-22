@@ -25,7 +25,7 @@ import lombok.ToString;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
 
 @ToString
-public class SegmentInfoImpl implements LedgerOffloader.SegmentInfo {
+public class SegmentInfoImpl {
     public SegmentInfoImpl(UUID uuid, long beginLedger, long beginEntry, String driverName,
                            Map<String, String> driverMetadata) {
         this.uuid = uuid;

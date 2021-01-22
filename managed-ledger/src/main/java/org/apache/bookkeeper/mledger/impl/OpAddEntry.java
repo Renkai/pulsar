@@ -26,7 +26,6 @@ import io.netty.util.ReferenceCountUtil;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-import io.netty.util.ReferenceCountUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
@@ -36,12 +35,6 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.bookkeeper.util.SafeRunnable;
-
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
-
-import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * Handles the life-cycle of an addEntry() operation.
@@ -355,7 +348,6 @@ public class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallba
         return PositionImpl.get(getLedgerId(), getEntryId());
     }
 
-    private static final Logger log = LoggerFactory.getLogger(OpAddEntry.class);
     @Override
     public String toString() {
         return "OpAddEntry{" +
