@@ -1341,16 +1341,30 @@ public class CmdTopics extends CmdBase {
                 , description = "ManagedLedger offload threshold in bytes", required = true)
         private long offloadThresholdInBytes;
 
-        @Parameter(names = {"-dl", "--offloadDeletionLagInMillis"}
+        @Parameter(names = { "-dl", "--offloadDeletionLagInMillis" }
                 , description = "ManagedLedger offload deletion lag in bytes")
         private Long offloadDeletionLagInMillis;
 
         @Parameter(
-                names = {"--offloadedReadPriority", "-orp"},
+                names = { "--offloadedReadPriority", "-orp" },
                 description = "read priority for offloaded messages",
                 required = false
         )
         private String offloadReadPriorityStr;
+
+        @Parameter(
+                names = { "--offloadMethod", "-om" },
+                description = "offload method",
+                required = false
+        )
+        private String offloadMethod;
+
+        @Parameter(
+                names = { "--maxSegmentRolloverTimeSec", "-mrs" },
+                description = "offload method",
+                required = false
+        )
+        private Long maxOffloadSegmentRolloverTimeInSeconds;
 
         @Override
         void run() throws PulsarAdminException {
@@ -1370,8 +1384,19 @@ public class CmdTopics extends CmdBase {
                 }
             }
 
-            OffloadPolicies offloadPolicies = OffloadPolicies.create(driver, region, bucket, endpoint, awsId, awsSecret, maxBlockSizeInBytes
-                    , readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis, offloadedReadPriority);
+            OffloadPolicies offloadPolicies = OffloadPolicies
+                    .create(driver, region, bucket, endpoint, awsId, awsSecret, maxBlockSizeInBytes
+                            , readBufferSizeInBytes, offloadThresholdInBytes, offloadDeletionLagInMillis,
+                            offloadedReadPriority);
+
+
+            if (offloadMethod != null) {
+                offloadPolicies.setOffloadMethod(OffloadPolicies.OffloadMethod.fromString(offloadMethod));
+            }
+
+            if (maxOffloadSegmentRolloverTimeInSeconds != null) {
+                offloadPolicies.setMaxOffloadSegmentRolloverTimeInSeconds(maxOffloadSegmentRolloverTimeInSeconds);
+            }
 
             admin.topics().setOffloadPolicies(persistentTopic, offloadPolicies);
         }

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.tests.integration.offload;
 
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
@@ -31,9 +33,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.tests.integration.suites.PulsarTieredStorageTestSuite;
 import org.testng.Assert;
-
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
@@ -193,16 +192,85 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
         }
     }
 
+    public void testStreamingOffload(String serviceUrl, String adminUrl) throws Exception {
+        //TODO make sure the server actually use streaming offload
+        final String tenant = "offload-test-threshold-" + randomName(4);
+        final String namespace = tenant + "/ns2";
+        final String topic = "persistent://" + namespace + "/topic1";
+
+        pulsarCluster.runAdminCommandOnAnyBroker("tenants",
+                "create", "--allowed-clusters", pulsarCluster.getClusterName(),
+                "--admin-roles", "offload-admin", tenant);
+
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces",
+                "create", "--clusters", pulsarCluster.getClusterName(), namespace);
+
+        pulsarCluster.runAdminCommandOnAnyBroker("namespaces", "set-offload-policies",
+                "-d", getEnv().get("managedLedgerOffloadDriver"),
+                "-b", getEnv().get("s3ManagedLedgerOffloadBucket"),
+                "-e", getEnv().get("s3ManagedLedgerOffloadServiceEndpoint"),
+                "--maxSegmentRolloverTimeSec", "5", //let segment close fast
+                "-mbs", "32M", "-rbs", "5M", "-oat", "10M", "-oae", "10s",
+                "-orp", "tiered-storage-first", "--offloadMethod", "streaming-based", namespace);
+
+        long firstLedger = 0;
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+             Producer<byte[]> producer = client.newProducer().topic(topic)
+                     .blockIfQueueFull(true).enableBatching(false).create();
+        ) {
+
+            client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe().close();
+
+            // write enough to topic to make it roll twice
+            for (int i = 0; i < ENTRIES_PER_LEDGER * 2.5; i++) {
+                producer.sendAsync(buildEntry("offload-message" + i));
+            }
+
+            producer.flush();
+        }
+
+        try (PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
+            firstLedger = admin.topics().getInternalStats(topic).ledgers.get(0).ledgerId;
+
+            // wait up to 30 seconds for offload to occur
+            for (int i = 0; i < 300 && !admin.topics().getInternalStats(topic).ledgers.get(0).offloaded; i++) {
+                Thread.sleep(100);
+            }
+
+            Assert.assertTrue(admin.topics().getInternalStats(topic).ledgers.get(0).offloaded);
+
+            // delete the first ledger, so that we cannot possibly read from it
+            ClientConfiguration bkConf = new ClientConfiguration();
+            bkConf.setZkServers(pulsarCluster.getZKConnString());
+            try (BookKeeper bk = new BookKeeper(bkConf)) {
+                bk.deleteLedger(firstLedger);
+            }
+
+            // Unload topic to clear all caches, open handles, etc
+            admin.topics().unload(topic);
+        }
+
+        log.info("Read back the data (which would be in that first ledger)");
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+             Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe()) {
+            // read back from topic
+            for (int i = 0; i < ENTRIES_PER_LEDGER * 2.5; i++) {
+                Message<byte[]> m = consumer.receive(1, TimeUnit.MINUTES);
+                Assert.assertEquals(buildEntry("offload-message" + i), m.getData());
+            }
+        }
+    }
+
     private boolean ledgerOffloaded(List<PersistentTopicInternalStats.LedgerInfo> ledgers, long ledgerId) {
         return ledgers.stream().filter(l -> l.ledgerId == ledgerId)
                 .map(l -> l.offloaded).findFirst().get();
     }
 
     private long writeAndWaitForOffload(String serviceUrl, String adminUrl, String topic) throws Exception {
-        try(PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-            Producer producer = client.newProducer().topic(topic)
-                    .blockIfQueueFull(true).enableBatching(false).create();
-            PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
+        try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
+             Producer producer = client.newProducer().topic(topic)
+                     .blockIfQueueFull(true).enableBatching(false).create();
+             PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl).build()) {
 
             List<PersistentTopicInternalStats.LedgerInfo> ledgers = admin.topics().getInternalStats(topic).ledgers;
             long currentLedger = ledgers.get(ledgers.size() - 1).ledgerId;
