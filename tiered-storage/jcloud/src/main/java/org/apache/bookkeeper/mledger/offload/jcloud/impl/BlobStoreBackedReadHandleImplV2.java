@@ -40,7 +40,7 @@ import org.apache.bookkeeper.client.impl.LedgerEntriesImpl;
 import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.BackedInputStream;
 import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2;
-import org.apache.bookkeeper.mledger.offload.jcloud.StreamingOffloadIndexBlockBuilder;
+import org.apache.bookkeeper.mledger.offload.jcloud.OffloadIndexBlockV2Builder;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.DataBlockUtils.VersionCheck;
 import org.apache.pulsar.common.allocator.PulsarByteBufAllocator;
 import org.jclouds.blobstore.BlobStore;
@@ -48,8 +48,8 @@ import org.jclouds.blobstore.domain.Blob;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
-    private static final Logger log = LoggerFactory.getLogger(StreamingBlobStoreBackedReadHandleImpl.class);
+public class BlobStoreBackedReadHandleImplV2 implements ReadHandle {
+    private static final Logger log = LoggerFactory.getLogger(BlobStoreBackedReadHandleImplV2.class);
 
     private final long ledgerId;
     private final List<OffloadIndexBlockV2> indices;
@@ -86,9 +86,9 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
         }
     }
 
-    private StreamingBlobStoreBackedReadHandleImpl(long ledgerId, List<OffloadIndexBlockV2> indices,
-                                                   List<BackedInputStream> inputStreams,
-                                                   ExecutorService executor) {
+    private BlobStoreBackedReadHandleImplV2(long ledgerId, List<OffloadIndexBlockV2> indices,
+                                            List<BackedInputStream> inputStreams,
+                                            ExecutorService executor) {
         this.ledgerId = ledgerId;
         this.indices = indices;
         this.inputStreams = inputStreams;
@@ -285,7 +285,7 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
             Blob blob = blobStore.getBlob(bucket, indexKey);
             log.debug("indexKey blob: {} {}", indexKey, blob);
             versionCheck.check(indexKey, blob);
-            StreamingOffloadIndexBlockBuilder indexBuilder = StreamingOffloadIndexBlockBuilder.create();
+            OffloadIndexBlockV2Builder indexBuilder = OffloadIndexBlockV2Builder.create();
             final InputStream payloadStream = blob.getPayload().openStream();
             OffloadIndexBlockV2 index = indexBuilder.fromStream(payloadStream);
             payloadStream.close();
@@ -297,6 +297,6 @@ public class StreamingBlobStoreBackedReadHandleImpl implements ReadHandle {
             inputStreams.add(inputStream);
             indice.add(index);
         }
-        return new StreamingBlobStoreBackedReadHandleImpl(ledgerId, indice, inputStreams, executor);
+        return new BlobStoreBackedReadHandleImplV2(ledgerId, indice, inputStreams, executor);
     }
 }
