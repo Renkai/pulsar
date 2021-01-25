@@ -60,7 +60,6 @@ public interface LedgerOffloader {
             SUCCESS,
             FAIL_BUFFER_FULL,
             FAIL_SEGMENT_CLOSED,
-            FAIL_NOT_CONSECUTIVE
         }
 
         Position lastOffered();
@@ -202,7 +201,13 @@ public interface LedgerOffloader {
 
     default CompletableFuture<ReadHandle> readOffloaded(long ledgerId, MLDataFormats.OffloadContext ledgerContext,
                                                         Map<String, String> offloadDriverMetadata) {
-        throw new UnsupportedOperationException();
+        final UUID uuid = new UUID(ledgerContext.getUidMsb(), ledgerContext.getUidLsb());
+        if (ledgerContext.hasComplete() && ledgerContext.getComplete()) {
+            //ledger based offloading
+            return readOffloaded(ledgerId, uuid, offloadDriverMetadata);
+        } else {
+            throw new UnsupportedOperationException();
+        }
     }
 
     default CompletableFuture<Void> deleteOffloaded(UUID uid,

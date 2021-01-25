@@ -40,9 +40,10 @@ public class OffloadSegmentInfoImpl {
     public final long beginLedgerId;
     public final long beginEntryId;
     public final String driverName;
-    volatile private long endLedgerId;
-    volatile private long endEntryId;
+    volatile private long endLedger;
+    volatile private long endEntry;
     volatile boolean closed = false;
+    public final long beginTimestamp = System.currentTimeMillis();
     public final Map<String, String> driverMetadata;
 
     public boolean isClosed() {
@@ -50,12 +51,12 @@ public class OffloadSegmentInfoImpl {
     }
 
     public void closeSegment(long endLedger, long endEntry) {
-        this.endLedgerId = endLedger;
-        this.endEntryId = endEntry;
+        this.endLedger = endLedger;
+        this.endEntry = endEntry;
         this.closed = true;
     }
 
     public LedgerOffloader.OffloadResult result() {
-        return new LedgerOffloader.OffloadResult(beginLedgerId, beginEntryId, endLedgerId, endEntryId);
+        return new LedgerOffloader.OffloadResult(beginLedgerId, beginEntryId, endLedger, endEntry);
     }
 }

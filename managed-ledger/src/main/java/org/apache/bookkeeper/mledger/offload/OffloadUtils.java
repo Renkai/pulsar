@@ -73,6 +73,29 @@ public final class OffloadUtils {
         return defaultOffloadDriverMetadata;
     }
 
+    public static Map<String, String> getOffloadDriverMetadata(OffloadSegment offloadSegment,
+                                                               Map<String, String> defaultOffloadDriverMetadata) {
+        if (offloadSegment.hasDriverMetadata()) {
+            final OffloadDriverMetadata driverMetadata = offloadSegment.getDriverMetadata();
+            if (driverMetadata.getPropertiesCount() > 0) {
+                Map<String, String> metadata = Maps.newHashMap();
+                driverMetadata.getPropertiesList().forEach(kv -> metadata.put(kv.getKey(), kv.getValue()));
+                return metadata;
+            }
+        }
+        return defaultOffloadDriverMetadata;
+    }
+
+    public static String getOffloadDriverName(OffloadSegment offloadSegment, String defaultDriverName) {
+        if (offloadSegment.hasDriverMetadata()) {
+            OffloadDriverMetadata driverMetadata = offloadSegment.getDriverMetadata();
+            if (driverMetadata.hasName()) {
+                return driverMetadata.getName();
+            }
+        }
+        return defaultDriverName;
+    }
+
     public static String getOffloadDriverName(LedgerInfo ledgerInfo, String defaultDriverName) {
         if (ledgerInfo.hasOffloadContext()) {
             OffloadContext ctx = ledgerInfo.getOffloadContext();
@@ -90,8 +113,8 @@ public final class OffloadUtils {
                                                 String driverName,
                                                 Map<String, String> offloadDriverMetadata) {
         infoBuilder.getOffloadContextBuilder()
-            .getDriverMetadataBuilder()
-            .setName(driverName);
+                .getDriverMetadataBuilder()
+                .setName(driverName);
         infoBuilder.getOffloadContextBuilder().getDriverMetadataBuilder().clearProperties();
         offloadDriverMetadata.forEach((k, v) -> infoBuilder
                 .getOffloadContextBuilder()
@@ -144,7 +167,8 @@ public final class OffloadUtils {
     }
 
     public static LedgerMetadata parseLedgerMetadata(long id, byte[] bytes) throws IOException {
-        DataFormats.LedgerMetadataFormat ledgerMetadataFormat = DataFormats.LedgerMetadataFormat.newBuilder().mergeFrom(bytes).build();
+        DataFormats.LedgerMetadataFormat ledgerMetadataFormat = DataFormats.LedgerMetadataFormat.newBuilder()
+                .mergeFrom(bytes).build();
         LedgerMetadataBuilder builder = LedgerMetadataBuilder.create()
                 .withLastEntryId(ledgerMetadataFormat.getLastEntryId())
                 .withPassword(ledgerMetadataFormat.getPassword().toByteArray())
@@ -189,7 +213,8 @@ public final class OffloadUtils {
                 builder.withDigestType(DigestType.DUMMY);
                 break;
             default:
-                throw new IllegalArgumentException("Unable to convert digest type " + ledgerMetadataFormat.getDigestType());
+                throw new IllegalArgumentException(
+                        "Unable to convert digest type " + ledgerMetadataFormat.getDigestType());
         }
 
         return builder.build();

@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.common.policies.data.OffloadPolicies;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.tests.integration.suites.PulsarTieredStorageTestSuite;
 import org.testng.Assert;
@@ -193,7 +194,6 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
     }
 
     public void testStreamingOffload(String serviceUrl, String adminUrl) throws Exception {
-        //TODO make sure the server actually use streaming offload
         final String tenant = "offload-test-threshold-" + randomName(4);
         final String namespace = tenant + "/ns2";
         final String topic = "persistent://" + namespace + "/topic1";
@@ -238,6 +238,8 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
             }
 
             Assert.assertTrue(admin.topics().getInternalStats(topic).ledgers.get(0).offloaded);
+            Assert.assertEquals(admin.topics().getInternalStats(topic).ledgers.get(0).offloadMethod,
+                    OffloadPolicies.OffloadMethod.STREAMING_BASED.toString());
 
             // delete the first ledger, so that we cannot possibly read from it
             ClientConfiguration bkConf = new ClientConfiguration();
