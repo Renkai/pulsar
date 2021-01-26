@@ -414,28 +414,33 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     private void buildIndexAndCompleteResult(long dataObjectLength) {
         try {
-            blobStore.completeMultipartUpload(streamingMpu, streamingParts);
-            streamingIndexBuilder.withDataObjectLength(dataObjectLength);
-            final OffloadIndexBlockV2 index = streamingIndexBuilder.buildV2();
-            final IndexInputStream indexStream = index.toStream();
-            final BlobBuilder indexBlobBuilder = blobStore.blobBuilder(streamingDataIndexKey);
-            streamingIndexBuilder.withDataBlockHeaderLength(StreamingDataBlockHeaderImpl.getDataStartOffset());
+            if (streamingParts.isEmpty()) {
+                log.warn("segment closed but no data coming");
+                blobStore.abortMultipartUpload(streamingMpu);
+            } else {
+                blobStore.completeMultipartUpload(streamingMpu, streamingParts);
+                streamingIndexBuilder.withDataObjectLength(dataObjectLength);
+                final OffloadIndexBlockV2 index = streamingIndexBuilder.buildV2();
+                final IndexInputStream indexStream = index.toStream();
+                final BlobBuilder indexBlobBuilder = blobStore.blobBuilder(streamingDataIndexKey);
+                streamingIndexBuilder.withDataBlockHeaderLength(StreamingDataBlockHeaderImpl.getDataStartOffset());
 
-            DataBlockUtils.addVersionInfo(indexBlobBuilder, userMetadata);
-            try (final InputStreamPayload indexPayLoad = Payloads.newInputStreamPayload(indexStream)) {
-                indexPayLoad.getContentMetadata().setContentLength(indexStream.getStreamSize());
-                indexPayLoad.getContentMetadata().setContentType("application/octet-stream");
-                final Blob indexBlob = indexBlobBuilder.payload(indexPayLoad)
-                        .contentLength(indexStream.getStreamSize())
-                        .build();
-                blobStore.putBlob(config.getBucket(), indexBlob);
+                DataBlockUtils.addVersionInfo(indexBlobBuilder, userMetadata);
+                try (final InputStreamPayload indexPayLoad = Payloads.newInputStreamPayload(indexStream)) {
+                    indexPayLoad.getContentMetadata().setContentLength(indexStream.getStreamSize());
+                    indexPayLoad.getContentMetadata().setContentType("application/octet-stream");
+                    final Blob indexBlob = indexBlobBuilder.payload(indexPayLoad)
+                            .contentLength(indexStream.getStreamSize())
+                            .build();
+                    blobStore.putBlob(config.getBucket(), indexBlob);
 
-                final OffloadResult result = segmentInfo.result();
-                offloadResult.complete(result);
-                log.debug("offload segment completed {}", result);
-            } catch (Exception e) {
-                log.error("streaming offload failed", e);
-                offloadResult.completeExceptionally(e);
+                    final OffloadResult result = segmentInfo.result();
+                    offloadResult.complete(result);
+                    log.debug("offload segment completed {}", result);
+                } catch (Exception e) {
+                    log.error("streaming offload failed", e);
+                    offloadResult.completeExceptionally(e);
+                }
             }
         } catch (Exception e) {
             log.error("streaming offload failed", e);
