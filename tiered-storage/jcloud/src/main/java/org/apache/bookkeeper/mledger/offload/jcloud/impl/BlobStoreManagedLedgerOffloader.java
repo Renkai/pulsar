@@ -103,6 +103,11 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private volatile ManagedLedger ml;
     private OffloadIndexBlockV2Builder streamingIndexBuilder;
 
+
+    public BlobStoreManagedLedgerOffloader fork() {
+        return new BlobStoreManagedLedgerOffloader(config, scheduler, userMetadata);
+    }
+
     public static BlobStoreManagedLedgerOffloader create(TieredStorageConfiguration config,
                                                          Map<String, String> userMetadata,
                                                          OrderedScheduler scheduler) throws IOException {
@@ -519,34 +524,41 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     @Override
     public CompletableFuture<ReadHandle> readOffloaded(long ledgerId, MLDataFormats.OffloadContext ledgerContext,
                                                        Map<String, String> offloadDriverMetadata) {
-        BlobStoreLocation bsKey = getBlobStoreLocation(offloadDriverMetadata);
-        String readBucket = bsKey.getBucket();
-        BlobStore readBlobstore = blobStores.get(config.getBlobStoreLocation());
-        CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
-        final List<MLDataFormats.OffloadSegment> offloadSegmentList = ledgerContext.getOffloadSegmentList();
-        List<String> keys = Lists.newLinkedList();
-        List<String> indexKeys = Lists.newLinkedList();
-        offloadSegmentList.forEach(seg -> {
-            final UUID uuid = new UUID(seg.getUidMsb(), seg.getUidLsb());
-            final String key = uuid.toString();
-            final String indexKey = DataBlockUtils.indexBlockOffloadKey(uuid);
-            keys.add(key);
-            indexKeys.add(indexKey);
-        });
+        if (ledgerContext.hasComplete() && ledgerContext.getComplete()) {
+            //ledger based offloading
+            final UUID uuid = new UUID(ledgerContext.getUidMsb(), ledgerContext.getUidLsb());
+            return readOffloaded(ledgerId, uuid, offloadDriverMetadata);
+        } else {
+            //streaming offloading
+            BlobStoreLocation bsKey = getBlobStoreLocation(offloadDriverMetadata);
+            String readBucket = bsKey.getBucket();
+            BlobStore readBlobstore = blobStores.get(config.getBlobStoreLocation());
+            CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
+            final List<MLDataFormats.OffloadSegment> offloadSegmentList = ledgerContext.getOffloadSegmentList();
+            List<String> keys = Lists.newLinkedList();
+            List<String> indexKeys = Lists.newLinkedList();
+            offloadSegmentList.forEach(seg -> {
+                final UUID uuid = new UUID(seg.getUidMsb(), seg.getUidLsb());
+                final String key = uuid.toString();
+                final String indexKey = DataBlockUtils.indexBlockOffloadKey(uuid);
+                keys.add(key);
+                indexKeys.add(indexKey);
+            });
 
-        scheduler.chooseThread(ledgerId).submit(() -> {
-            try {
-                promise.complete(BlobStoreBackedReadHandleImplV2.open(scheduler.chooseThread(ledgerId),
-                        readBlobstore,
-                        readBucket, keys, indexKeys,
-                        DataBlockUtils.VERSION_CHECK,
-                        ledgerId, config.getReadBufferSizeInBytes()));
-            } catch (Throwable t) {
-                log.error("Failed readOffloaded: ", t);
-                promise.completeExceptionally(t);
-            }
-        });
-        return promise;
+            scheduler.chooseThread(ledgerId).submit(() -> {
+                try {
+                    promise.complete(BlobStoreBackedReadHandleImplV2.open(scheduler.chooseThread(ledgerId),
+                            readBlobstore,
+                            readBucket, keys, indexKeys,
+                            DataBlockUtils.VERSION_CHECK,
+                            ledgerId, config.getReadBufferSizeInBytes()));
+                } catch (Throwable t) {
+                    log.error("Failed readOffloaded: ", t);
+                    promise.completeExceptionally(t);
+                }
+            });
+            return promise;
+        }
     }
 
     @Override
