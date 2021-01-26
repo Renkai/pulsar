@@ -431,6 +431,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private void initializeSegments() {
+        Long updatedLedgerId = null;
+        LedgerInfo updatedLedgerInfo = null;
         for (Map.Entry<Long, LedgerInfo> idInfo : ledgers.entrySet()) {
 
             final Long ledgerId = idInfo.getKey();
@@ -482,11 +484,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 final OffloadContext context = ledgerInfo.getOffloadContext().toBuilder().clearOffloadSegment()
                         .addAllOffloadSegment(newSegments).build();
                 final LedgerInfo newLedgerInfo = ledgerInfo.toBuilder().setOffloadContext(context).build();
-                idInfo.setValue(newLedgerInfo);
+                updatedLedgerId = idInfo.getKey();
+                updatedLedgerInfo = newLedgerInfo;
                 offloadSegments.add(new OffloadSegmentInfoImpl(uuid, ledgerId, beginEntry, driverName, driverMetadata));
                 break;
             }
         }
+        ledgers.put(updatedLedgerId, updatedLedgerInfo);
     }
 
     public static boolean isStreamingOffloadCompleted(LedgerInfo ledgerInfo) {

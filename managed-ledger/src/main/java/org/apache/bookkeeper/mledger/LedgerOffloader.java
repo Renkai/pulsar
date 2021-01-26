@@ -91,7 +91,7 @@ public interface LedgerOffloader {
     String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
 
     default LedgerOffloader fork() {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException(" fork()");
     }
 
     /**
@@ -166,7 +166,7 @@ public interface LedgerOffloader {
     default CompletableFuture<OffloadHandle> streamingOffload(ManagedLedger ml, UUID uid, long beginLedger,
                                                               long beginEntry,
                                                               Map<String, String> driverMetadata) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException(this.getClass().toString() + " streamingOffload");
     }
 
     /**
@@ -206,13 +206,13 @@ public interface LedgerOffloader {
             //ledger based offloading
             return readOffloaded(ledgerId, uuid, offloadDriverMetadata);
         } else {
-            throw new UnsupportedOperationException();
+            throw new UnsupportedOperationException(this.getClass().toString() + " readOffloaded");
         }
     }
 
     default CompletableFuture<Void> deleteOffloaded(UUID uid,
                                                     Map<String, String> offloadDriverMetadata) {
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException(this.getClass().toString() + " deleteOffloaded");
     }
 
     /**
