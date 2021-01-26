@@ -389,6 +389,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             log.debug("begin upload payload: {} {}", blockLedgerId, beginEntryId);
             Payload partPayload = Payloads.newInputStreamPayload(payloadStream);
             partPayload.getContentMetadata().setContentType("application/octet-stream");
+            partPayload.getContentMetadata().setContentLength((long) blockSize);
             streamingParts.add(blobStore.uploadMultipartPart(streamingMpu, partId, partPayload));
             streamingIndexBuilder.withDataBlockHeaderLength(StreamingDataBlockHeaderImpl.getDataStartOffset());
             streamingIndexBuilder.addBlock(blockLedgerId, beginEntryId, partId, blockSize);
