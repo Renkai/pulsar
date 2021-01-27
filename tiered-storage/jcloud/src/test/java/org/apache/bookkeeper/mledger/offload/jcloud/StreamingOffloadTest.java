@@ -19,19 +19,25 @@
 
 package org.apache.bookkeeper.mledger.offload.jcloud;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.isStreamingOffloadCompleted;
+import static org.testng.Assert.assertEquals;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.LedgerOffloader;
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.offload.jcloud.impl.BlobStoreManagedLedgerOffloaderStreamingTest;
 import org.apache.bookkeeper.mledger.offload.jcloud.provider.TieredStorageConfiguration;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 @Slf4j
@@ -88,7 +94,6 @@ public class StreamingOffloadTest extends MockedBookKeeperTestCase {
                     put("offloadMethod", OffloadPolicies.OffloadMethod.STREAMING_BASED.getStrValue());
                 }}
         );
-        System.out.println("offloader.getClass() = " + offloader.getClass());
         int ENTRIES_PER_LEDGER = 10;
         ManagedLedgerConfig config = new ManagedLedgerConfig();
         config.setMaxEntriesPerLedger(ENTRIES_PER_LEDGER);
@@ -108,8 +113,24 @@ public class StreamingOffloadTest extends MockedBookKeeperTestCase {
         final LedgerOffloader.OffloadResult offloadResult = currentOffloadHandle.getOffloadResultAsync().get();
         log.info("offloadResult = " + offloadResult);
         log.info("offload method: " + ledger.getOffloadMethod());
+        while (!isStreamingOffloadCompleted(ledger.getLedgersInfoAsList().get(0))) {
+            Thread.sleep(10);
+        }
+        Assert.assertTrue(isStreamingOffloadCompleted(ledger.getLedgersInfoAsList().get(0)));
+        Assert.assertTrue(isStreamingOffloadCompleted(ledger.getLedgersInfoAsList().get(1)));
 
-//        Assert.assertTrue(ledger.getLedgersInfoAsList().get(0).getOffloadContext().getComplete());
-//        Assert.assertTrue(ledger.getLedgersInfoAsList().get(1).getOffloadContext().getComplete());
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.earliest);
+        int i = 0;
+        for (Entry e : cursor.readEntries(10)) {
+            assertEquals(new String(e.getData()), "entry-" + i++);
+        }
+
+        for (Entry e : cursor.readEntries(10)) {
+            assertEquals(new String(e.getData()), "entry-" + i++);
+        }
+
+        for (Entry e : cursor.readEntries(5)) {
+            assertEquals(new String(e.getData()), "entry-" + i++);
+        }
     }
 }

@@ -52,6 +52,17 @@ public final class OffloadUtils {
                 if (driverMetadata.getPropertiesCount() > 0) {
                     driverMetadata.getPropertiesList().forEach(kv -> metadata.put(kv.getKey(), kv.getValue()));
                 }
+                return metadata;
+            }
+
+            if (ctx.getOffloadSegmentList().size() > 0) {
+                final OffloadSegment offloadSegment = ctx.getOffloadSegmentList().get(0);
+                if (offloadSegment.hasDriverMetadata()) {
+                    final OffloadDriverMetadata driverMetadata = offloadSegment.getDriverMetadata();
+                    if (driverMetadata.getPropertiesCount() > 0) {
+                        driverMetadata.getPropertiesList().forEach(kv -> metadata.put(kv.getKey(), kv.getValue()));
+                    }
+                }
             }
         }
         return metadata;

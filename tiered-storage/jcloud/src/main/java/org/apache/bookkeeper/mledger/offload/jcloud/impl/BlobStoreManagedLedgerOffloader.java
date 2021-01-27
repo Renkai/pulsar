@@ -484,6 +484,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     }
 
     private synchronized boolean closeSegment() {
+        if (segmentInfo == null) {
+            return false;
+        }
         final boolean result = !segmentInfo.isClosed();
         log.debug("close segment {} {}", lastOfferedPosition.getLedgerId(), lastOfferedPosition.getEntryId());
         this.segmentInfo.closeSegment(lastOfferedPosition.getLedgerId(), lastOfferedPosition.getEntryId());
@@ -543,6 +546,9 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         } else {
             //streaming offloading
             BlobStoreLocation bsKey = getBlobStoreLocation(offloadDriverMetadata);
+            log.debug("offloadDriverMetadata: {}", offloadDriverMetadata);
+            log.debug("bsKey: {}", bsKey);
+
             String readBucket = bsKey.getBucket();
             BlobStore readBlobstore = blobStores.get(config.getBlobStoreLocation());
             CompletableFuture<ReadHandle> promise = new CompletableFuture<>();
