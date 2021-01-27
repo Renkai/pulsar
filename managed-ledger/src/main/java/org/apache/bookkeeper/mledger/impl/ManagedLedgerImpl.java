@@ -215,6 +215,16 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
     private LedgerOffloader offloader;
     private ConcurrentLinkedQueue<OffloadSegmentInfoImpl> offloadSegments;
+
+    /**
+     * Used for cross module test.
+     * `@VisibleForTesting` annotation doesn't work
+     * so have to set to public, not for regular usage.
+     */
+    public OffloadHandle getCurrentOffloadHandle() {
+        return currentOffloadHandle;
+    }
+
     private volatile OffloadHandle currentOffloadHandle;
 
 
@@ -461,14 +471,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             beginEntry = offloadSegment.getEndEntryId() + 1;
                             newSegments.add(offloadSegment);
                         }
-                    } else {
-                        UUID uuidForClean = new UUID(offloadSegment.getUidMsb(), offloadSegment.getUidLsb());
-                        cleanupOffloaded(ledgerInfo.getLedgerId(), uuidForClean,
-                                OffloadUtils.getOffloadDriverName(offloadSegment, config.getLedgerOffloader()
-                                        .getOffloadDriverName()),
-                                OffloadUtils.getOffloadDriverMetadata(offloadSegment, config.getLedgerOffloader()
-                                        .getOffloadDriverMetadata()),
-                                "Previous failed");
                     }
                 }
 

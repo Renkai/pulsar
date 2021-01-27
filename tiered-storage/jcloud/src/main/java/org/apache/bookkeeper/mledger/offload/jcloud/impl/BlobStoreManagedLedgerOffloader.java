@@ -627,6 +627,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
 
     @Override
     public void close() {
+        closeSegment();
         for (BlobStore readBlobStore : blobStores.values()) {
             if (readBlobStore != null) {
                 readBlobStore.getContext().close();
