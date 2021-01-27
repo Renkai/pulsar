@@ -94,7 +94,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     final private long maxBufferLength;
     final private ConcurrentLinkedQueue<Entry> offloadBuffer = new ConcurrentLinkedQueue<>();
     private CompletableFuture<OffloadResult> offloadResult;
-    private volatile PositionImpl lastOfferedPosition = PositionImpl.latest;
+    private volatile PositionImpl lastOfferedPosition = PositionImpl.earliest;
     private final Duration maxSegmentCloseTime;
     private final long minSegmentCloseTimeMillis;
     private final long segmentBeginTimeMillis;
@@ -103,7 +103,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
     private volatile ManagedLedger ml;
     private OffloadIndexBlockV2Builder streamingIndexBuilder;
 
-
+    @Override
     public BlobStoreManagedLedgerOffloader fork() {
         return new BlobStoreManagedLedgerOffloader(config, scheduler, userMetadata);
     }
@@ -293,6 +293,12 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         this.ml = ml;
         this.segmentInfo = new OffloadSegmentInfoImpl(uuid, beginLedger, beginEntry, config.getDriver(),
                 driverMetadata);
+        if (beginEntry == 0) {
+            lastOfferedPosition = PositionImpl.get(beginLedger - 1, Long.MAX_VALUE);
+        } else {
+            lastOfferedPosition = PositionImpl.get(beginLedger, beginEntry - 1);
+        }
+
         log.debug("begin offload with {}:{}", beginLedger, beginEntry);
         this.offloadResult = new CompletableFuture<>();
         blobStore = blobStores.get(config.getBlobStoreLocation());

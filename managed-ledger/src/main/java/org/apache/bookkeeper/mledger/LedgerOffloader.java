@@ -91,7 +91,7 @@ public interface LedgerOffloader {
     String METADATA_SOFTWARE_GITSHA_KEY = "S3ManagedLedgerOffloaderSoftwareGitSha";
 
     default LedgerOffloader fork() {
-        throw new UnsupportedOperationException(" fork()");
+        throw new UnsupportedOperationException(this.getClass().toString() + " fork()");
     }
 
     /**

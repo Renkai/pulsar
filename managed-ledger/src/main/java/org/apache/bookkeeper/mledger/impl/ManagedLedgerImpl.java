@@ -380,7 +380,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 } else {
                     initializeBookKeeper(callback);
                 }
-                initializeStreamingOffloader();
             }
 
             @Override
@@ -490,6 +489,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 break;
             }
         }
+        log.debug("updated ledgerId: {}", updatedLedgerId);
         ledgers.put(updatedLedgerId, updatedLedgerInfo);
     }
 
@@ -582,6 +582,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private List<LedgerInSegment> getLedgersInSegment(OffloadSegmentInfoImpl segmentInfo) {
+        log.debug("got ledgers in segment: {}", segmentInfo);
         final LedgerOffloader.OffloadResult offloadResult = segmentInfo.result();
         if (offloadResult.beginLedger == offloadResult.endLedger) {
             return Lists.newArrayList(
@@ -597,7 +598,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             if (ledgerI != null) {
                 result.add(new LedgerInSegment(i, 0, ledgerI.getEntries() - 1, segmentInfo.beginTimestamp));
             } else {
-                log.info("ledger {} does not exists in ledgers, maybe because it is empty", i);
+                log.warn("ledger {} does not exists in ledgers, maybe because it is empty", i);
             }
         }
         result.add(new LedgerInSegment(offloadResult.endLedger, 0, offloadResult.endEntry, segmentInfo.beginTimestamp));
@@ -752,7 +753,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
                 LedgerInfo info = LedgerInfo.newBuilder().setLedgerId(lh.getId()).setTimestamp(0).build();
                 ledgers.put(lh.getId(), info);
-
+                initializeStreamingOffloader();
                 // Save it back to ensure all nodes exist
                 store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, storeLedgersCb);
             }));
