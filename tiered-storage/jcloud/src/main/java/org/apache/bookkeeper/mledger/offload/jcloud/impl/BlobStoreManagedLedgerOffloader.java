@@ -349,6 +349,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         log.debug("streaming offload loop {} {}", partId, dataObjectLength);
         if (segmentInfo.isClosed() && offloadBuffer.isEmpty()) {
             buildIndexAndCompleteResult(dataObjectLength);
+            log.debug("offload complete: {}", segmentInfo.result());
             offloadResult.complete(segmentInfo.result());
         } else if ((segmentInfo.isClosed() && !offloadBuffer.isEmpty())
                 // last time to build and upload block
@@ -375,7 +376,8 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
             buildBlockAndUpload(blockSize, entries, blockLedgerId, blockEntryId, partId);
             streamingOffloadLoop(partId + 1, dataObjectLength + blockSize);
         } else {
-            log.debug("not enough data, delay schedule for part: {} length: {}", partId, dataObjectLength);
+            log.debug("not enough data, delay schedule for part: {} length: {}, closed: {}", partId, dataObjectLength,
+                    segmentInfo.isClosed());
             scheduler.chooseThread(segmentInfo)
                     .schedule(() -> {
                         streamingOffloadLoop(partId, dataObjectLength);

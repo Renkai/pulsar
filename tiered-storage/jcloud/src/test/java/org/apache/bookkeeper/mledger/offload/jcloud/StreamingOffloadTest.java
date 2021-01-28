@@ -133,4 +133,75 @@ public class StreamingOffloadTest extends MockedBookKeeperTestCase {
             assertEquals(new String(e.getData()), "entry-" + i++);
         }
     }
+
+    @Test
+    public void testSetStreamingOffloadAfterCreated() throws ManagedLedgerException, InterruptedException, IOException,
+            ExecutionException {
+        LedgerOffloader offloader = offloaderGenerator.getOffloader(
+                new HashMap<String, String>() {{
+                    put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
+                    put(offloaderGenerator.getConfig().getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE)
+                            .get(0), "5242880");
+                    put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "600");
+                    put("offloadMethod", OffloadPolicies.OffloadMethod.LEDGER_BASED.getStrValue());
+                }}
+        );
+        int ENTRIES_PER_LEDGER = 10;
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setMaxEntriesPerLedger(ENTRIES_PER_LEDGER);
+        config.setMinimumRolloverTime(0, TimeUnit.SECONDS);
+        config.setRetentionTime(10, TimeUnit.MINUTES);
+        config.setRetentionSizeInMB(10);
+        config.setLedgerOffloader(offloader);
+
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("test_read_and_write", config);
+        int beforeSetStreaming = 1;
+        for (int i = 0; i < beforeSetStreaming; i++) {
+            String content = "entry-" + i;
+            ledger.addEntry(content.getBytes());
+        }
+
+        LedgerOffloader streamingOffloader = offloaderGenerator.getOffloader(
+                new HashMap<String, String>() {{
+                    put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_SIZE_IN_BYTES, "1000");
+                    put(offloaderGenerator.getConfig().getKeys(TieredStorageConfiguration.METADATA_FIELD_MAX_BLOCK_SIZE)
+                            .get(0), "5242880");
+                    put(TieredStorageConfiguration.MAX_OFFLOAD_SEGMENT_ROLLOVER_TIME_SEC, "600");
+                    put("offloadMethod", OffloadPolicies.OffloadMethod.STREAMING_BASED.getStrValue());
+                }}
+        );
+
+        config.setLedgerOffloader(streamingOffloader);
+        ledger.setConfig(config);
+
+        for (int i = beforeSetStreaming; i < ENTRIES_PER_LEDGER * 2.5; i++) {
+            String content = "entry-" + i;
+            ledger.addEntry(content.getBytes());
+        }
+        Thread.sleep(5000);
+        final LedgerOffloader.OffloadHandle currentOffloadHandle = ledger.getCurrentOffloadHandle();
+        currentOffloadHandle.close();
+        final LedgerOffloader.OffloadResult offloadResult = currentOffloadHandle.getOffloadResultAsync().get();
+        log.info("offloadResult = " + offloadResult);
+        log.info("offload method: " + ledger.getOffloadMethod());
+        while (!isStreamingOffloadCompleted(ledger.getLedgersInfoAsList().get(0))) {
+            Thread.sleep(10);
+        }
+        Assert.assertTrue(isStreamingOffloadCompleted(ledger.getLedgersInfoAsList().get(0)));
+        Assert.assertTrue(isStreamingOffloadCompleted(ledger.getLedgersInfoAsList().get(1)));
+
+        ManagedCursor cursor = ledger.newNonDurableCursor(PositionImpl.earliest);
+        int i = 0;
+        for (Entry e : cursor.readEntries(10)) {
+            assertEquals(new String(e.getData()), "entry-" + i++);
+        }
+
+        for (Entry e : cursor.readEntries(10)) {
+            assertEquals(new String(e.getData()), "entry-" + i++);
+        }
+
+        for (Entry e : cursor.readEntries(5)) {
+            assertEquals(new String(e.getData()), "entry-" + i++);
+        }
+    }
 }

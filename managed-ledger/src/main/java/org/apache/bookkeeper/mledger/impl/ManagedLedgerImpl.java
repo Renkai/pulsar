@@ -595,6 +595,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private List<LedgerInSegment> getLedgersInSegment(OffloadSegmentInfoImpl segmentInfo) {
         log.debug("got ledgers in segment: {}", segmentInfo);
         final LedgerOffloader.OffloadResult offloadResult = segmentInfo.result();
+        if (offloadResult.beginLedger == offloadResult.endLedger && offloadResult.endEntry < offloadResult.beginEntry) {
+            //empty segment
+            return Lists.newLinkedList();
+        }
         if (offloadResult.beginLedger == offloadResult.endLedger) {
             return Lists.newArrayList(
                     new LedgerInSegment(offloadResult.beginLedger, offloadResult.beginEntry, offloadResult.endEntry,
@@ -682,6 +686,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 }
                 return newBuilder.build();
             });
+        }
+
+        if (ledgerForTrans.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
         }
         return transformLedgerInfo(ledgerForTrans);
     }
@@ -1093,8 +1101,9 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final PositionImpl positionNextToOffered = getNextValidPosition(
                 PositionImpl.get(currentOffloadHandle.lastOffered()));
 
+        final PositionImpl offeringPosition = addOperation.getPosition();
         if (positionNextToOffered
-                .equals(addOperation.getPosition())) {
+                .equals(offeringPosition)) {
             final EntryImpl entry = EntryImpl
                     .create(PositionImpl.get(addOperation.ledger.getId(), addOperation.getEntryId()),
                             addOperation.getData());
@@ -1117,7 +1126,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         if (offloadEntryFillTask == null || offloadEntryFillTask.isDone()) {
             offloadEntryFillTask = new CompletableFuture<>();
             scheduledExecutor.schedule(safeRun(() -> entryFillLoop(currentOffloadHandle, positionNextToOffered,
-                    PositionImpl.get(addOperation.getLedgerId(), addOperation.getEntryId()),
+                    PositionImpl.get(offeringPosition),
                     offloadEntryFillTask)), 100, TimeUnit.MILLISECONDS);
         } // else fill when next entry added
     }
