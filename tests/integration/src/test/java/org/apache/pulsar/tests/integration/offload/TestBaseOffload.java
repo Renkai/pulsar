@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.tests.integration.offload;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -216,7 +217,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
                 "-orp", "tiered-storage-first", "--offloadMethod", "streaming-based", namespace);
 
         long firstLedger = 0;
-        CompletableFuture<MessageId> startMessageId = null;
+        List<MessageId> messageIds = new LinkedList<>();
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
              Producer<byte[]> producer = client.newProducer().topic(topic)
                      .blockIfQueueFull(true).enableBatching(false).create();
@@ -228,9 +229,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
             for (int i = 0; i < ENTRIES_PER_LEDGER * 2.5; i++) {
                 final CompletableFuture<MessageId> messageId = producer
                         .sendAsync(buildEntry("offload-message" + i));
-                if (startMessageId == null) {
-                    startMessageId = messageId;
-                }
+                messageIds.add(messageId.get());
             }
 
             producer.flush();
@@ -264,10 +263,11 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
              Consumer<byte[]> consumer =
                      client.newConsumer().topic(topic).subscriptionName("my-sub")
                              .startMessageIdInclusive().subscribe()) {
-            consumer.seek(startMessageId.get());
+            consumer.seek(messageIds.get(0));
             // read back from topic
             for (int i = 0; i < ENTRIES_PER_LEDGER * 2.5; i++) {
                 Message<byte[]> m = consumer.receive(1, TimeUnit.MINUTES);
+                Assert.assertEquals(messageIds.get(i), m.getMessageId());
                 Assert.assertEquals(new String(buildEntry("offload-message" + i)), new String(m.getData()));
             }
         }
