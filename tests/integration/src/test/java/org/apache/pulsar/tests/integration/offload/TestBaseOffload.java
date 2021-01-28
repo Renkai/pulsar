@@ -263,7 +263,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
              Consumer<byte[]> consumer =
                      client.newConsumer().topic(topic).subscriptionName("my-sub")
                              .startMessageIdInclusive().subscribe()) {
-            consumer.seek(messageIds.get(0));
+            consumer.seek(MessageId.earliest);
             // read back from topic
             for (int i = 0; i < ENTRIES_PER_LEDGER * 2.5; i++) {
                 Message<byte[]> m = consumer.receive(1, TimeUnit.MINUTES);
