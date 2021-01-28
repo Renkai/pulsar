@@ -293,12 +293,7 @@ public class BlobStoreManagedLedgerOffloader implements LedgerOffloader {
         this.ml = ml;
         this.segmentInfo = new OffloadSegmentInfoImpl(uuid, beginLedger, beginEntry, config.getDriver(),
                 driverMetadata);
-        if (beginEntry == 0) {
-            lastOfferedPosition = PositionImpl.get(beginLedger - 1, Long.MAX_VALUE);
-        } else {
-            lastOfferedPosition = PositionImpl.get(beginLedger, beginEntry - 1);
-        }
-
+        lastOfferedPosition = PositionImpl.get(beginLedger, beginEntry - 1);
         log.debug("begin offload with {}:{}", beginLedger, beginEntry);
         this.offloadResult = new CompletableFuture<>();
         blobStore = blobStores.get(config.getBlobStoreLocation());
