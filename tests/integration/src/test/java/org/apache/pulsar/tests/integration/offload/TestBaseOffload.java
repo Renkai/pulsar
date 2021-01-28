@@ -19,6 +19,7 @@
 package org.apache.pulsar.tests.integration.offload;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.client.BKException;
@@ -28,6 +29,7 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
@@ -214,6 +216,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
                 "-orp", "tiered-storage-first", "--offloadMethod", "streaming-based", namespace);
 
         long firstLedger = 0;
+        CompletableFuture<MessageId> startMessageId = null;
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
              Producer<byte[]> producer = client.newProducer().topic(topic)
                      .blockIfQueueFull(true).enableBatching(false).create();
@@ -223,7 +226,11 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
 
             // write enough to topic to make it roll twice
             for (int i = 0; i < ENTRIES_PER_LEDGER * 2.5; i++) {
-                producer.sendAsync(buildEntry("offload-message" + i));
+                final CompletableFuture<MessageId> messageId = producer
+                        .sendAsync(buildEntry("offload-message" + i));
+                if (startMessageId == null) {
+                    startMessageId = messageId;
+                }
             }
 
             producer.flush();
@@ -254,7 +261,10 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
 
         log.info("Read back the data (which would be in that first ledger)");
         try (PulsarClient client = PulsarClient.builder().serviceUrl(serviceUrl).build();
-             Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName("my-sub").subscribe()) {
+             Consumer<byte[]> consumer =
+                     client.newConsumer().topic(topic).subscriptionName("my-sub")
+                             .startMessageIdInclusive().subscribe()) {
+            consumer.seek(startMessageId.get());
             // read back from topic
             for (int i = 0; i < ENTRIES_PER_LEDGER * 2.5; i++) {
                 Message<byte[]> m = consumer.receive(1, TimeUnit.MINUTES);
