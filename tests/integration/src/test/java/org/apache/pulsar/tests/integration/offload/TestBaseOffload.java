@@ -258,7 +258,7 @@ public abstract class TestBaseOffload extends PulsarTieredStorageTestSuite {
             // read back from topic
             for (int i = 0; i < ENTRIES_PER_LEDGER * 2.5; i++) {
                 Message<byte[]> m = consumer.receive(1, TimeUnit.MINUTES);
-                Assert.assertEquals(buildEntry("offload-message" + i), m.getData());
+                Assert.assertEquals(new String(buildEntry("offload-message" + i)), new String(m.getData()));
             }
         }
     }
