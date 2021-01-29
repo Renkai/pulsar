@@ -1873,7 +1873,6 @@ public class CmdNamespaces extends CmdBase {
                 offloadPolicies.setMaxOffloadSegmentRolloverTimeInSeconds(maxOffloadSegmentRolloverTimeInSeconds);
             }
 
-            admin.namespaces().setOffloadPolicies(namespace, offloadPolicies);
             getAdmin().namespaces().setOffloadPolicies(namespace, offloadPolicies);
         }
     }

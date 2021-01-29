@@ -601,7 +601,7 @@ public class PulsarAdminToolTest {
         when(admin.lookups()).thenReturn(mockLookup);
 
 
-        CmdNamespaces namespaces = new CmdNamespaces(admin);
+        CmdNamespaces namespaces = new CmdNamespaces(() -> admin);
         //test with no explicit region
         namespaces.run(split(
                 "set-offload-policies -d aws-s3 -b pulsar-integtest -e http://s3:9090 --maxSegmentRolloverTimeSec 5 -mbs 32M -rbs 5M -oat 10M -oae 10s -orp tiered-storage-first --offloadMethod streaming-based offload-test-threshold-sxpn/ns2"));
