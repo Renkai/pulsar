@@ -26,6 +26,7 @@ import lombok.ToString;
 import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
+import org.apache.bookkeeper.mledger.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats;
 import org.apache.pulsar.common.policies.data.OffloadPolicies;
 
@@ -200,6 +201,8 @@ public interface LedgerOffloader {
                                                         Map<String, String> offloadDriverMetadata) {
         throw new UnsupportedOperationException();
     }
+
+    CompletableFuture<LedgerInfo> getLedgerInfo(long ledgerId, Map<String, String> offloadDriverMetadata);
 
     default CompletableFuture<Void> deleteOffloaded(UUID uid,
                                                     Map<String, String> offloadDriverMetadata) {
