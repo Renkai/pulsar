@@ -51,6 +51,13 @@ message OffloadSegment {
     optional OffloadDriverMetadata driverMetadata = 7;
 }
 
+//new added
+message TieredLedgerInfo {
+    required OffloadDriverMetadata driverMetadata = 1;
+    required int64 beginLedgerId = 2;
+    required int64 endLedgerId = 3;
+}
+
 message ManagedLedgerInfo {
     message LedgerInfo {
         required int64 ledgerId = 1;
@@ -70,13 +77,10 @@ message ManagedLedgerInfo {
 
     repeated KeyValue properties = 3;
 
-    //if none, this ManagedLedgerInfo is a root node
-    optional OffloadDriverMetadata driverMetadata = 4;
-
-    //both inclusive range
-    optional int64 beginLedgerId = 5;
-    optional int64 endLedgerId = 6;
-    repeated ManagedLedgerInfo tieredLedgerInfo = 7;
+    // Pointer of tiered ledger info
+    // ledgers with same driver metadata and consecutive ledger id
+    // will be presented by a TieredLedgerInfo item
+    repeated TieredLedgerInfo tieredLedgerInfo = 4; //new added
 }
 
 message PositionInfo {
