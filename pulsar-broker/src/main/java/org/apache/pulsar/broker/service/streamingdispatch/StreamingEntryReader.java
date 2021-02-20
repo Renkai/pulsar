@@ -119,22 +119,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
 
         // Issue requests.
         for (PendingReadEntryRequest request : issuedReads) {
-            try {
-                managedLedger.newNonDurableCursor(request.position).asyncReadEntries(1,
-                        new AsyncCallbacks.ReadEntriesCallback() {
-                            @Override
-                            public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                                StreamingEntryReader.this.readEntryComplete(entries.get(0), ctx);
-                            }
-
-                            @Override
-                            public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                                StreamingEntryReader.this.readEntryFailed(exception, ctx);
-                            }
-                        }, null, PositionImpl.latest);
-            } catch (ManagedLedgerException e) {
-                StreamingEntryReader.this.readEntryFailed(e, null);
-            }
+            managedLedger.asyncReadEntry(request.position, this, request);
         }
 
         if (!pendingReads.isEmpty()) {
@@ -288,22 +273,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
             topic.getBrokerService().getTopicOrderedExecutor().executeOrdered(dispatcher.getName(),
                     SafeRun.safeRun(() -> {
                         ManagedLedger managedLedger = cursor.getManagedLedger();
-                        try {
-                            managedLedger.newNonDurableCursor(pendingReadEntryRequest.position).asyncReadEntries(1,
-                                    new AsyncCallbacks.ReadEntriesCallback() {
-                                        @Override
-                                        public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                                            StreamingEntryReader.this.readEntryComplete(entries.get(0), ctx);
-                                        }
-
-                                        @Override
-                                        public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                                            StreamingEntryReader.this.readEntryFailed(exception, ctx);
-                                        }
-                                    }, null, PositionImpl.latest);
-                        } catch (ManagedLedgerException e) {
-                            StreamingEntryReader.this.readEntryFailed(e, null);
-                        }
+                        managedLedger.asyncReadEntry(pendingReadEntryRequest.position, this, pendingReadEntryRequest);
                     }));
         }, delay, TimeUnit.MILLISECONDS);
     }
@@ -340,22 +310,7 @@ public class StreamingEntryReader implements AsyncCallbacks.ReadEntryCallback, W
             }
 
             for (PendingReadEntryRequest request : newlyIssuedRequests) {
-                try {
-                    managedLedger.newNonDurableCursor(request.position).asyncReadEntries(1,
-                            new AsyncCallbacks.ReadEntriesCallback() {
-                                @Override
-                                public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                                    StreamingEntryReader.this.readEntryComplete(entries.get(0), ctx);
-                                }
-
-                                @Override
-                                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                                    StreamingEntryReader.this.readEntryFailed(exception, ctx);
-                                }
-                            }, null, PositionImpl.latest);
-                } catch (ManagedLedgerException e) {
-                    StreamingEntryReader.this.readEntryFailed(e, null);
-                }
+                managedLedger.asyncReadEntry(request.position, this, request);
             }
 
             if (!pendingReads.isEmpty()) {

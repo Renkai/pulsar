@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.offload.jcloud.impl;
 import com.google.common.base.Predicate;
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
@@ -71,6 +72,11 @@ public class MockManagedLedger implements ManagedLedger {
 
     @Override
     public void asyncAddEntry(byte[] data, AsyncCallbacks.AddEntryCallback callback, Object ctx) {
+
+    }
+
+    @Override
+    public void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx) {
 
     }
 
@@ -183,6 +189,56 @@ public class MockManagedLedger implements ManagedLedger {
     @Override
     public long getNumberOfEntries() {
         return 0;
+    }
+
+    @Override
+    public long getEntriesAddedCounter() {
+        return 0;
+    }
+
+    @Override
+    public long getLastLedgerCreatedTimestamp() {
+        return 0;
+    }
+
+    @Override
+    public long getLastLedgerCreationFailureTimestamp() {
+        return 0;
+    }
+
+    @Override
+    public int getWaitingCursorsCount() {
+        return 0;
+    }
+
+    @Override
+    public long getCurrentLedgerEntries() {
+        return 0;
+    }
+
+    @Override
+    public long getCurrentLedgerSize() {
+        return 0;
+    }
+
+    @Override
+    public String getState() {
+        return null;
+    }
+
+    @Override
+    public NavigableMap<Long, LedgerInfo> getLedgersInfo() {
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<String> getLedgerMetadata(long ledgerId) {
+        return null;
+    }
+
+    @Override
+    public boolean ledgerExists(long ledgerId) {
+        return false;
     }
 
     @Override

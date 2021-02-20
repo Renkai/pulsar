@@ -20,6 +20,7 @@ package org.apache.bookkeeper.mledger;
 
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.common.annotation.InterfaceAudience;
 import org.apache.bookkeeper.common.annotation.InterfaceStability;
@@ -113,6 +114,8 @@ public interface ManagedLedger {
      *            opaque context
      */
     void asyncAddEntry(byte[] data, AddEntryCallback callback, Object ctx);
+
+    void asyncReadEntry(PositionImpl position, AsyncCallbacks.ReadEntryCallback callback, Object ctx);
 
     /**
      * Append a new entry to the end of a managed ledger.
@@ -370,6 +373,26 @@ public interface ManagedLedger {
      * @return the number of entries
      */
     long getNumberOfEntries();
+
+    long getEntriesAddedCounter();
+
+    long getLastLedgerCreatedTimestamp();
+
+    long getLastLedgerCreationFailureTimestamp();
+
+    int getWaitingCursorsCount();
+
+    long getCurrentLedgerEntries();
+
+    long getCurrentLedgerSize();
+
+    String getState();
+
+    NavigableMap<Long, LedgerInfo> getLedgersInfo();
+
+    CompletableFuture<String> getLedgerMetadata(long ledgerId);
+
+    boolean ledgerExists(long ledgerId);
 
     /**
      * Get the total number of active entries for this managed ledger.

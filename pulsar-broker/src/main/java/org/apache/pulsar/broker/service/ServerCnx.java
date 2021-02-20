@@ -34,7 +34,6 @@ import io.netty.handler.codec.haproxy.HAProxyMessage;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
 import java.net.SocketAddress;
-import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
@@ -1606,25 +1605,17 @@ public class ServerCnx extends PulsarHandler implements TransportCnx {
 
         // For a valid position, we read the entry out and parse the batch size from its metadata.
         CompletableFuture<Entry> entryFuture = new CompletableFuture<>();
-        try {
-            ml.newNonDurableCursor(position).asyncReadEntries(1, new AsyncCallbacks.ReadEntriesCallback() {
-                @Override
-                public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                    if (!entries.isEmpty()) {
-                        entryFuture.complete(entries.get(0));
-                    } else {
-                        entryFuture.complete(null);
-                    }
-                }
+        ml.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                entryFuture.complete(entry);
+            }
 
-                @Override
-                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                    entryFuture.completeExceptionally(exception);
-                }
-            }, null, PositionImpl.latest);
-        } catch (ManagedLedgerException e) {
-            entryFuture.completeExceptionally(e);
-        }
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                entryFuture.completeExceptionally(exception);
+            }
+        }, null);
 
         CompletableFuture<Integer> batchSizeFuture = entryFuture.thenApply(entry -> {
             MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());

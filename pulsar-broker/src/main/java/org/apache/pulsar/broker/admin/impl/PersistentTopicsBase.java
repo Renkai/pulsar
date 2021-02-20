@@ -2194,36 +2194,37 @@ public class PersistentTopicsBase extends AdminResource {
         if (batchIndex >= 0) {
             try {
                 ManagedLedger ledger = topic.getManagedLedger();
-                final PositionImpl position = new PositionImpl(messageId.getLedgerId(),
-                        messageId.getEntryId());
-                ledger.newNonDurableCursor(position).asyncReadEntries(1, new AsyncCallbacks.ReadEntriesCallback() {
+                ledger.asyncReadEntry(new PositionImpl(messageId.getLedgerId(),
+                        messageId.getEntryId()), new AsyncCallbacks.ReadEntryCallback() {
                     @Override
-                    public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                        try {
-                            if (entries.isEmpty()) {
-                                batchSizeFuture.complete(0);
-                            } else {
-                                MessageMetadata metadata =
-                                        Commands.parseMessageMetadata(entries.get(0).getDataBuffer());
-                                batchSizeFuture.complete(metadata.getNumMessagesInBatch());
-                            }
-                        } catch (Exception e) {
-                            batchSizeFuture.completeExceptionally(new RestException(e));
-                        } finally {
-                            for (Entry entry : entries) {
-                                entry.release();
-                            }
-                        }
-                    }
-
-                    @Override
-                    public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
+                    public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
                         // Since we can't read the message from the storage layer,
                         // it might be an already delete message ID or an invalid message ID
                         // We should fall back to non batch index seek.
                         batchSizeFuture.complete(0);
                     }
-                }, null, PositionImpl.latest);
+
+                    @Override
+                    public void readEntryComplete(Entry entry, Object ctx) {
+                        try {
+                            try {
+                                if (entry == null) {
+                                    batchSizeFuture.complete(0);
+                                } else {
+                                    MessageMetadata metadata =
+                                            Commands.parseMessageMetadata(entry.getDataBuffer());
+                                    batchSizeFuture.complete(metadata.getNumMessagesInBatch());
+                                }
+                            } catch (Exception e) {
+                                batchSizeFuture.completeExceptionally(new RestException(e));
+                            }
+                        } finally {
+                            if (entry != null) {
+                                entry.release();
+                            }
+                        }
+                    }
+                }, null);
             } catch (NullPointerException npe) {
                 batchSizeFuture.completeExceptionally(new RestException(Status.NOT_FOUND, "Message not found"));
             } catch (Exception exception) {
@@ -2278,26 +2279,25 @@ public class PersistentTopicsBase extends AdminResource {
             validateReadOperationOnTopic(authoritative);
             PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
             ManagedLedger ledger = topic.getManagedLedger();
-            final PositionImpl position = new PositionImpl(ledgerId, entryId);
-            ledger.newNonDurableCursor(position).asyncReadEntries(1, new AsyncCallbacks.ReadEntriesCallback() {
+            ledger.asyncReadEntry(new PositionImpl(ledgerId, entryId), new AsyncCallbacks.ReadEntryCallback() {
                 @Override
-                public void readEntriesComplete(List<Entry> entries, Object ctx) {
+                public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                    asyncResponse.resume(new RestException(exception));
+                }
+
+                @Override
+                public void readEntryComplete(Entry entry, Object ctx) {
                     try {
-                        asyncResponse.resume(generateResponseWithEntry(entries.get(0)));
-                    } catch (Exception e) {
-                        asyncResponse.resume(new RestException(e));
+                        asyncResponse.resume(generateResponseWithEntry(entry));
+                    } catch (IOException exception) {
+                        asyncResponse.resume(new RestException(exception));
                     } finally {
-                        for (Entry entry : entries) {
+                        if (entry != null) {
                             entry.release();
                         }
                     }
                 }
-
-                @Override
-                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                    asyncResponse.resume(new RestException(exception));
-                }
-            }, null, PositionImpl.latest);
+            }, null);
         } catch (NullPointerException npe) {
             asyncResponse.resume(new RestException(Status.NOT_FOUND, "Message not found"));
         } catch (Exception exception) {

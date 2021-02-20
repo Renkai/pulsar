@@ -62,7 +62,6 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedE
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
-import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -1713,8 +1712,7 @@ public class PersistentTopic extends AbstractTopic
 
         CompletableFuture<PersistentTopicInternalStats> statFuture = new CompletableFuture<>();
         PersistentTopicInternalStats stats = new PersistentTopicInternalStats();
-        //TODO avoid ManagedLedgerImpl
-        ManagedLedgerImpl ml = (ManagedLedgerImpl) ledger;
+        ManagedLedger ml = ledger;
         stats.entriesAddedCounter = ml.getEntriesAddedCounter();
         stats.numberOfEntries = ml.getNumberOfEntries();
         stats.totalSize = ml.getTotalSize();
@@ -2351,31 +2349,30 @@ public class PersistentTopic extends AbstractTopic
                     .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex));
             return completableFuture;
         }
-
-        try {
-            ledger.newNonDurableCursor(position).asyncReadEntries(1, new AsyncCallbacks.ReadEntriesCallback() {
-                @Override
-                public void readEntriesComplete(List<Entry> entries, Object ctx) {
-                    MessageMetadata metadata = Commands.parseMessageMetadata(entries.get(0).getDataBuffer());
-                    if (metadata.hasNumMessagesInBatch()) {
-                        completableFuture.complete(new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),
-                                partitionIndex, metadata.getNumMessagesInBatch() - 1));
-                    } else {
-                        completableFuture
-                                .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(),
-                                        partitionIndex));
-                    }
-                }
-
-                @Override
-                public void readEntriesFailed(ManagedLedgerException exception, Object ctx) {
-                    completableFuture.completeExceptionally(exception);
-                }
-            }, null, PositionImpl.latest);
-        } catch (ManagedLedgerException e) {
-            completableFuture.completeExceptionally(e);
+        ManagedLedger ledgerImpl = ledger;
+        if (!ledgerImpl.ledgerExists(position.getLedgerId())) {
+            completableFuture
+                    .complete(MessageId.earliest);
+            return completableFuture;
         }
+        ledgerImpl.asyncReadEntry(position, new AsyncCallbacks.ReadEntryCallback() {
+            @Override
+            public void readEntryComplete(Entry entry, Object ctx) {
+                MessageMetadata metadata = Commands.parseMessageMetadata(entry.getDataBuffer());
+                if (metadata.hasNumMessagesInBatch()) {
+                    completableFuture.complete(new BatchMessageIdImpl(position.getLedgerId(), position.getEntryId(),
+                            partitionIndex, metadata.getNumMessagesInBatch() - 1));
+                } else {
+                    completableFuture
+                            .complete(new MessageIdImpl(position.getLedgerId(), position.getEntryId(), partitionIndex));
+                }
+            }
 
+            @Override
+            public void readEntryFailed(ManagedLedgerException exception, Object ctx) {
+                completableFuture.completeExceptionally(exception);
+            }
+        }, null);
         return completableFuture;
     }
 
